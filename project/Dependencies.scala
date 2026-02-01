@@ -20,6 +20,11 @@ object Dependencies {
     val scalaLogging = "3.9.5"
     val scalatest = "3.2.17"
     val testcontainers = "0.41.2"
+    val arrow = "14.0.1"
+    val parquet = "1.13.1"
+    val hadoop = "3.3.6"
+    val lucene = "9.9.2"
+    val roaringBitmap = "0.9.45"
   }
   
   // Core dependencies
@@ -68,6 +73,28 @@ object Dependencies {
   val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % Versions.scalaLogging
   val logbackClassic = "ch.qos.logback" % "logback-classic" % Versions.logback
   
+  // Apache Arrow
+  val arrowVector = "org.apache.arrow" % "arrow-vector" % Versions.arrow
+  val arrowMemory = "org.apache.arrow" % "arrow-memory-netty" % Versions.arrow
+  val arrowAlgorithm = "org.apache.arrow" % "arrow-algorithm" % Versions.arrow
+  
+  // Apache Parquet
+  val parquetHadoop = "org.apache.parquet" % "parquet-hadoop" % Versions.parquet
+  val parquetColumn = "org.apache.parquet" % "parquet-column" % Versions.parquet
+  val parquetAvro = "org.apache.parquet" % "parquet-avro" % Versions.parquet
+  
+  // Hadoop (minimal for Parquet)
+  val hadoopCommon = "org.apache.hadoop" % "hadoop-common" % Versions.hadoop exclude("org.slf4j", "slf4j-log4j12")
+  
+  // Apache Lucene
+  val luceneCore = "org.apache.lucene" % "lucene-core" % Versions.lucene
+  val luceneQueryParser = "org.apache.lucene" % "lucene-queryparser" % Versions.lucene
+  val luceneAnalysisCommon = "org.apache.lucene" % "lucene-analysis-common" % Versions.lucene
+  val luceneAnalysisPhonetic = "org.apache.lucene" % "lucene-analysis-phonetic" % Versions.lucene
+  
+  // RoaringBitmap
+  val roaringBitmap = "org.roaringbitmap" % "RoaringBitmap" % Versions.roaringBitmap
+  
   // Testing
   val scalatest = "org.scalatest" %% "scalatest" % Versions.scalatest % Test
   val testcontainers = "com.dimafeng" %% "testcontainers-scala-scalatest" % Versions.testcontainers % Test
@@ -110,7 +137,19 @@ object Dependencies {
     minio,
     doobieCore,
     doobieHikari,
-    doobiePostgres
+    doobiePostgres,
+    arrowVector,
+    arrowMemory,
+    arrowAlgorithm,
+    parquetHadoop,
+    parquetColumn,
+    parquetAvro,
+    hadoopCommon,
+    luceneCore,
+    luceneQueryParser,
+    luceneAnalysisCommon,
+    luceneAnalysisPhonetic,
+    roaringBitmap
   )
   
   val messagingDeps = Seq(

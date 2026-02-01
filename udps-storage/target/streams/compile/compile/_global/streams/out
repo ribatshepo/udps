@@ -1,0 +1,4 @@
+[error] /home/tshepo/projects/seri-sa/udps/udps-storage/src/main/scala/io/gbmm/udps/storage/parquet/ParquetWriter.scala:512:24: unreachable code
+[error]           writeMapValue(v, rowIdx)
+[error]                        ^
+[error] one error found
