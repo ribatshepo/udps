@@ -1,0 +1,53 @@
+syntax = "proto3";
+package uccp.common;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// Standard response envelope
+message Response {
+  bool success = 1;
+  string message = 2;
+  string error_code = 3;
+  string correlation_id = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// Resource specification
+message ResourceSpec {
+  double cpu = 1;
+  int64 memory_bytes = 2;
+  int32 gpu_count = 3;
+  string gpu_type = 4;
+  int64 gpu_memory_bytes = 5;
+  int64 disk_bytes = 6;
+  int64 network_bandwidth_bps = 7;
+}
+
+// Pagination
+message PaginationRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string sort_by = 3;
+  bool descending = 4;
+}
+
+message PaginationResponse {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 total_count = 3;
+  int32 total_pages = 4;
+}
+
+// Health status
+enum HealthStatus {
+  HEALTH_STATUS_UNKNOWN = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}
+
+// Label selector
+message LabelSelector {
+  map<string, string> match_labels = 1;
+}

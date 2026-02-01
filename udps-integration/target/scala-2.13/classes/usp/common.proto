@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package usp.common;
+
+import "google/protobuf/timestamp.proto";
+
+// Standard response envelope for all gRPC responses
+message GrpcResponse {
+  bool success = 1;
+  string message = 2;
+  string error_code = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  string correlation_id = 5;
+  map<string, string> metadata = 6;
+}
+
+// Pagination request parameters
+message PaginationRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string sort_by = 3;
+  bool sort_descending = 4;
+}
+
+// Pagination response metadata
+message PaginatedResponse {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 total_count = 3;
+  int32 total_pages = 4;
+  bool has_next = 5;
+  bool has_previous = 6;
+}

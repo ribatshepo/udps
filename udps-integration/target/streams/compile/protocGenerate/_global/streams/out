@@ -1,0 +1,11 @@
+[debug] Invalidating cache (input changed)
+[info] Compiling 8 protobuf files to /home/tshepo/projects/seri-sa/udps/udps-integration/target/scala-2.13/src_managed/main/scalapb
+[debug] protoc options:
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/authorization.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/session.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/uccp/common.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/secrets.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/common.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/authentication.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/uccp/coordination.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/outpost.proto

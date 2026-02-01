@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package usp.outpost;
+
+import "google/protobuf/timestamp.proto";
+import "usp/common.proto";
+
+// Outpost Communication Service - Bidirectional communication between USP and outposts
+service OutpostCommunicationService {
+  // Authenticate outpost using token
+  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+
+  // Send heartbeat and receive configuration updates
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // Get current configuration for the outpost
+  rpc GetConfiguration(GetConfigurationRequest) returns (GetConfigurationResponse);
+
+  // Report health metrics
+  rpc ReportHealth(ReportHealthRequest) returns (usp.common.GrpcResponse);
+
+  // Report authentication event
+  rpc ReportAuthEvent(ReportAuthEventRequest) returns (usp.common.GrpcResponse);
+
+  // Stream configuration updates (server-side streaming)
+  rpc StreamConfigurationUpdates(StreamConfigurationRequest) returns (stream ConfigurationUpdate);
+}
+
+// Authentication
+message AuthenticateRequest {
+  string outpost_id = 1;
+  string token = 2;
+  string outpost_version = 3;
+  string hostname = 4;
+  map<string, string> metadata = 5;
+}
+
+message AuthenticateResponse {
+  bool success = 1;
+  string session_id = 2;
+  int32 config_version = 3;
+  google.protobuf.Timestamp token_expires_at = 4;
+  string error_code = 5;
+  string message = 6;
+}
+
+// Heartbeat
+message HeartbeatRequest {
+  string outpost_id = 1;
+  string session_id = 2;
+  int32 current_config_version = 3;
+  OutpostMetrics metrics = 4;
+}
+
+message HeartbeatResponse {
+  bool success = 1;
+  int32 latest_config_version = 2;
+  bool config_update_available = 3;
+  google.protobuf.Timestamp next_heartbeat_at = 4;
+}
+
+message OutpostMetrics {
+  double cpu_usage_percent = 1;
+  double memory_usage_percent = 2;
+  int32 active_connections = 3;
+  int64 requests_processed = 4;
+  int32 error_count = 5;
+  map<string, string> custom_metrics = 6;
+}
+
+// Configuration
+message GetConfigurationRequest {
+  string outpost_id = 1;
+  string session_id = 2;
+  int32 current_version = 3;
+}
+
+message GetConfigurationResponse {
+  bool success = 1;
+  int32 config_version = 2;
+  OutpostConfiguration configuration = 3;
+  repeated ProviderConfiguration providers = 4;
+  string error_code = 5;
+  string message = 6;
+}
+
+message OutpostConfiguration {
+  string outpost_id = 1;
+  string name = 2;
+  OutpostType type = 3;
+  string workspace_id = 4;
+  string configuration_json = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message ProviderConfiguration {
+  string provider_id = 1;
+  string provider_type = 2;
+  string provider_name = 3;
+  int32 priority = 4;
+  string configuration_json = 5;
+  bool is_active = 6;
+}
+
+enum OutpostType {
+  OUTPOST_TYPE_UNSPECIFIED = 0;
+  OUTPOST_TYPE_PROXY = 1;
+  OUTPOST_TYPE_LDAP = 2;
+  OUTPOST_TYPE_RADIUS = 3;
+  OUTPOST_TYPE_RAC = 4;
+  OUTPOST_TYPE_PAM = 5;
+  OUTPOST_TYPE_COMPUTE = 6;
+}
+
+// Health Reporting
+message ReportHealthRequest {
+  string outpost_id = 1;
+  string session_id = 2;
+  bool is_healthy = 3;
+  int32 response_time_ms = 4;
+  OutpostState reported_state = 5;
+  string status_message = 6;
+  OutpostMetrics metrics = 7;
+}
+
+enum OutpostState {
+  OUTPOST_STATE_UNSPECIFIED = 0;
+  OUTPOST_STATE_PENDING = 1;
+  OUTPOST_STATE_CONNECTING = 2;
+  OUTPOST_STATE_CONNECTED = 3;
+  OUTPOST_STATE_DEGRADED = 4;
+  OUTPOST_STATE_DISCONNECTED = 5;
+  OUTPOST_STATE_ERROR = 6;
+  OUTPOST_STATE_DISABLED = 7;
+}
+
+// Auth Event Reporting
+message ReportAuthEventRequest {
+  string outpost_id = 1;
+  string session_id = 2;
+  AuthEvent event = 3;
+}
+
+message AuthEvent {
+  string event_id = 1;
+  AuthEventType event_type = 2;
+  string user_identifier = 3;
+  string provider_id = 4;
+  bool success = 5;
+  string client_ip = 6;
+  string user_agent = 7;
+  string error_message = 8;
+  map<string, string> attributes = 9;
+  google.protobuf.Timestamp timestamp = 10;
+}
+
+enum AuthEventType {
+  AUTH_EVENT_TYPE_UNSPECIFIED = 0;
+  AUTH_EVENT_TYPE_LOGIN = 1;
+  AUTH_EVENT_TYPE_LOGOUT = 2;
+  AUTH_EVENT_TYPE_TOKEN_ISSUED = 3;
+  AUTH_EVENT_TYPE_TOKEN_REFRESHED = 4;
+  AUTH_EVENT_TYPE_ACCESS_DENIED = 5;
+  AUTH_EVENT_TYPE_SESSION_CREATED = 6;
+  AUTH_EVENT_TYPE_SESSION_TERMINATED = 7;
+}
+
+// Configuration Streaming
+message StreamConfigurationRequest {
+  string outpost_id = 1;
+  string session_id = 2;
+  int32 current_config_version = 3;
+}
+
+message ConfigurationUpdate {
+  int32 new_version = 1;
+  OutpostConfiguration configuration = 2;
+  repeated ProviderConfiguration providers = 3;
+  bool full_update = 4;
+  google.protobuf.Timestamp published_at = 5;
+}

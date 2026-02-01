@@ -1,0 +1,12 @@
+[debug] Extracted from /home/tshepo/.cache/coursier/v1/https/repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.25.2/protobuf-java-3.25.2.jar:
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/source_context.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/struct.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/any.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/empty.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/api.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/timestamp.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/type.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/duration.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/wrappers.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/field_mask.proto
+[debug]  * /home/tshepo/projects/seri-sa/udps/udps-integration/target/protobuf_external/google/protobuf/descriptor.proto

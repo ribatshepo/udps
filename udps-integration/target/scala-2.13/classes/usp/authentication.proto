@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package usp.authentication;
+
+import "google/protobuf/timestamp.proto";
+import "usp/common.proto";
+
+// Authentication Service - High-performance token validation and session operations
+service AuthenticationService {
+  // Validate JWT token (primary use case for service-to-service auth)
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  // Create authentication session
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+
+  // Validate session
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse);
+
+  // Revoke session
+  rpc RevokeSession(RevokeSessionRequest) returns (usp.common.GrpcResponse);
+
+  // Get user context (for service-to-service calls)
+  rpc GetUserContext(GetUserContextRequest) returns (GetUserContextResponse);
+
+  // Refresh token
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+}
+
+// Token validation
+message ValidateTokenRequest {
+  string token = 1;
+  repeated string required_scopes = 2;
+  string workspace_id = 3;
+}
+
+message ValidateTokenResponse {
+  bool is_valid = 1;
+  string user_id = 2;
+  string email = 3;
+  string workspace_id = 4;
+  repeated string roles = 5;
+  repeated string permissions = 6;
+  google.protobuf.Timestamp expires_at = 7;
+  string error_code = 8;
+  string message = 9;
+}
+
+// Session management
+message CreateSessionRequest {
+  string user_id = 1;
+  string workspace_id = 2;
+  string ip_address = 3;
+  string user_agent = 4;
+  map<string, string> metadata = 5;
+}
+
+message CreateSessionResponse {
+  usp.common.GrpcResponse response = 1;
+  string session_id = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message ValidateSessionRequest {
+  string session_id = 1;
+  string workspace_id = 2;
+}
+
+message ValidateSessionResponse {
+  bool is_valid = 1;
+  string user_id = 2;
+  string workspace_id = 3;
+  google.protobuf.Timestamp last_activity = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  string error_code = 6;
+}
+
+message RevokeSessionRequest {
+  string session_id = 1;
+  string workspace_id = 2;
+}
+
+// User context
+message GetUserContextRequest {
+  string user_id = 1;
+  string workspace_id = 2;
+}
+
+message GetUserContextResponse {
+  usp.common.GrpcResponse response = 1;
+  UserContextData user = 2;
+}
+
+message UserContextData {
+  string user_id = 1;
+  string email = 2;
+  string workspace_id = 3;
+  repeated string roles = 4;
+  repeated string permissions = 5;
+  map<string, string> attributes = 6;
+}
+
+// Token refresh
+message RefreshTokenRequest {
+  string refresh_token = 1;
+  string workspace_id = 2;
+}
+
+message RefreshTokenResponse {
+  usp.common.GrpcResponse response = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  google.protobuf.Timestamp access_token_expires_at = 4;
+}

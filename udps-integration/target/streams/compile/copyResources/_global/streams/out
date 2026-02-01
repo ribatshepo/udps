@@ -1,0 +1,9 @@
+[debug] Copy resource mappings: 
+[debug] 	(/home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/authorization.proto,/home/tshepo/projects/seri-sa/udps/udps-integration/target/scala-2.13/classes/usp/authorization.proto)
+[debug] 	(/home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/secrets.proto,/home/tshepo/projects/seri-sa/udps/udps-integration/target/scala-2.13/classes/usp/secrets.proto)
+[debug] 	(/home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/common.proto,/home/tshepo/projects/seri-sa/udps/udps-integration/target/scala-2.13/classes/usp/common.proto)
+[debug] 	(/home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/authentication.proto,/home/tshepo/projects/seri-sa/udps/udps-integration/target/scala-2.13/classes/usp/authentication.proto)
+[debug] 	(/home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/outpost.proto,/home/tshepo/projects/seri-sa/udps/udps-integration/target/scala-2.13/classes/usp/outpost.proto)
+[debug] 	(/home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/usp/session.proto,/home/tshepo/projects/seri-sa/udps/udps-integration/target/scala-2.13/classes/usp/session.proto)
+[debug] 	(/home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/uccp/coordination.proto,/home/tshepo/projects/seri-sa/udps/udps-integration/target/scala-2.13/classes/uccp/coordination.proto)
+[debug] 	(/home/tshepo/projects/seri-sa/udps/udps-integration/src/main/protobuf/uccp/common.proto,/home/tshepo/projects/seri-sa/udps/udps-integration/target/scala-2.13/classes/uccp/common.proto)

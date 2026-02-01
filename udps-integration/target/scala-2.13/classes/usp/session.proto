@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package usp.session;
+
+import "google/protobuf/timestamp.proto";
+import "usp/common.proto";
+
+// Session Service - Distributed session management
+service SessionService {
+  // Create or update session
+  rpc UpsertSession(UpsertSessionRequest) returns (UpsertSessionResponse);
+
+  // Get session data
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+
+  // Update session activity
+  rpc UpdateActivity(UpdateActivityRequest) returns (usp.common.GrpcResponse);
+
+  // Terminate session
+  rpc TerminateSession(TerminateSessionRequest) returns (usp.common.GrpcResponse);
+
+  // Get active sessions for user
+  rpc GetActiveSessions(GetActiveSessionsRequest) returns (GetActiveSessionsResponse);
+}
+
+message UpsertSessionRequest {
+  string session_id = 1;
+  string user_id = 2;
+  string workspace_id = 3;
+  string ip_address = 4;
+  string user_agent = 5;
+  int32 ttl_seconds = 6;
+  map<string, string> data = 7;
+}
+
+message UpsertSessionResponse {
+  usp.common.GrpcResponse response = 1;
+  string session_id = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message GetSessionRequest {
+  string session_id = 1;
+  string workspace_id = 2;
+}
+
+message GetSessionResponse {
+  usp.common.GrpcResponse response = 1;
+  SessionData session = 2;
+}
+
+message SessionData {
+  string session_id = 1;
+  string user_id = 2;
+  string workspace_id = 3;
+  string ip_address = 4;
+  string user_agent = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp last_activity = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  map<string, string> data = 9;
+}
+
+message UpdateActivityRequest {
+  string session_id = 1;
+  string workspace_id = 2;
+}
+
+message TerminateSessionRequest {
+  string session_id = 1;
+  string workspace_id = 2;
+}
+
+message GetActiveSessionsRequest {
+  string user_id = 1;
+  string workspace_id = 2;
+}
+
+message GetActiveSessionsResponse {
+  usp.common.GrpcResponse response = 1;
+  repeated SessionData sessions = 2;
+}

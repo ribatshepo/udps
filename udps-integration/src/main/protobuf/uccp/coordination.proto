@@ -1,0 +1,129 @@
+syntax = "proto3";
+package uccp.coordination;
+
+import "uccp/common.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// --- Service Discovery ---
+service ServiceDiscovery {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Deregister(DeregisterRequest) returns (uccp.common.Response);
+  rpc Discover(DiscoverRequest) returns (DiscoverResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (uccp.common.Response);
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse);
+  rpc GetServiceMetadata(GetServiceMetadataRequest) returns (GetServiceMetadataResponse);
+  rpc WatchServices(WatchServicesRequest) returns (stream ServiceEvent);
+}
+
+// Service Registration messages
+message RegisterRequest {
+  string service_name = 1;
+  string service_type = 2;
+  string version = 3;
+  string address = 4;
+  int32 port = 5;
+  string protocol = 6;
+  map<string, string> metadata = 7;
+  repeated string capabilities = 8;
+  map<string, string> labels = 9;
+  google.protobuf.Duration ttl = 10;
+  HealthCheckConfig health_check = 11;
+  string region = 12;
+  string zone = 13;
+}
+
+message RegisterResponse {
+  uccp.common.Response response = 1;
+  string service_id = 2;
+  google.protobuf.Duration lease_ttl = 3;
+}
+
+message DeregisterRequest {
+  string service_id = 1;
+}
+
+message DiscoverRequest {
+  string service_name = 1;
+  string service_type = 2;
+  string version = 3;
+  uccp.common.HealthStatus min_health = 4;
+  map<string, string> labels = 5;
+  repeated string required_capabilities = 6;
+  string region = 7;
+  string zone = 8;
+}
+
+message DiscoverResponse {
+  uccp.common.Response response = 1;
+  repeated ServiceInstance services = 2;
+}
+
+message ServiceInstance {
+  string service_id = 1;
+  string service_name = 2;
+  string service_type = 3;
+  string version = 4;
+  string address = 5;
+  int32 port = 6;
+  string protocol = 7;
+  map<string, string> metadata = 8;
+  repeated string capabilities = 9;
+  map<string, string> labels = 10;
+  uccp.common.HealthStatus health = 11;
+  google.protobuf.Timestamp last_seen = 12;
+  string region = 13;
+  string zone = 14;
+}
+
+message HeartbeatRequest {
+  string service_id = 1;
+  uccp.common.HealthStatus health = 2;
+  map<string, string> metadata_updates = 3;
+}
+
+message HealthCheckConfig {
+  string endpoint = 1;
+  google.protobuf.Duration interval = 2;
+  google.protobuf.Duration timeout = 3;
+  int32 unhealthy_threshold = 4;
+  int32 healthy_threshold = 5;
+}
+
+message ListServicesRequest {
+  string service_name = 1;
+  uccp.common.PaginationRequest pagination = 2;
+}
+
+message ListServicesResponse {
+  uccp.common.Response response = 1;
+  repeated ServiceInstance services = 2;
+  uccp.common.PaginationResponse pagination = 3;
+}
+
+message GetServiceMetadataRequest {
+  string service_id = 1;
+}
+
+message GetServiceMetadataResponse {
+  uccp.common.Response response = 1;
+  ServiceInstance service = 2;
+}
+
+message WatchServicesRequest {
+  string service_name = 1;
+  map<string, string> labels = 2;
+}
+
+message ServiceEvent {
+  enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    EVENT_TYPE_REGISTERED = 1;
+    EVENT_TYPE_DEREGISTERED = 2;
+    EVENT_TYPE_HEALTH_CHANGED = 3;
+    EVENT_TYPE_METADATA_UPDATED = 4;
+  }
+  EventType type = 1;
+  ServiceInstance service = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}

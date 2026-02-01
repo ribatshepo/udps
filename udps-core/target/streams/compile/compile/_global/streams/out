@@ -1,0 +1,43 @@
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:119:73: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val serviceReader: ConfigReader[ServiceConfig] = deriveReader[ServiceConfig]
+[error]                                                                         ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:120:67: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val grpcReader: ConfigReader[GrpcConfig] = deriveReader[GrpcConfig]
+[error]                                                                   ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:121:69: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val httpsReader: ConfigReader[HttpsConfig] = deriveReader[HttpsConfig]
+[error]                                                                     ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:122:73: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val metricsReader: ConfigReader[MetricsConfig] = deriveReader[MetricsConfig]
+[error]                                                                         ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:123:71: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val healthReader: ConfigReader[HealthConfig] = deriveReader[HealthConfig]
+[error]                                                                       ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:124:75: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val databaseReader: ConfigReader[DatabaseConfig] = deriveReader[DatabaseConfig]
+[error]                                                                           ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:125:69: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val minioReader: ConfigReader[MinioConfig] = deriveReader[MinioConfig]
+[error]                                                                     ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:126:69: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val kafkaReader: ConfigReader[KafkaConfig] = deriveReader[KafkaConfig]
+[error]                                                                     ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:127:69: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val redisReader: ConfigReader[RedisConfig] = deriveReader[RedisConfig]
+[error]                                                                     ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:128:65: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val tlsReader: ConfigReader[TlsConfig] = deriveReader[TlsConfig]
+[error]                                                                 ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:129:73: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val storageReader: ConfigReader[StorageConfig] = deriveReader[StorageConfig]
+[error]                                                                         ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:130:69: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val queryReader: ConfigReader[QueryConfig] = deriveReader[QueryConfig]
+[error]                                                                     ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:131:73: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val tracingReader: ConfigReader[TracingConfig] = deriveReader[TracingConfig]
+[error]                                                                         ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-core/src/main/scala/io/gbmm/udps/core/config/UdpsConfig.scala:132:67: Block result was adapted via implicit conversion (method apply) taking a by-name parameter
+[error]   implicit val udpsReader: ConfigReader[UdpsConfig] = deriveReader[UdpsConfig]
+[error]                                                                   ^
+[error] 14 errors found

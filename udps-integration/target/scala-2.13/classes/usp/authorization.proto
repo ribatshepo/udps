@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package usp.authorization;
+
+import "google/protobuf/timestamp.proto";
+import "usp/common.proto";
+
+// Authorization Service - High-performance permission and policy evaluation
+service AuthorizationService {
+  // Check if user has permission for an action on a resource
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+
+  // Batch permission check (optimize service-to-service calls)
+  rpc CheckPermissions(CheckPermissionsRequest) returns (CheckPermissionsResponse);
+
+  // Evaluate ABAC policy
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse);
+
+  // Get user permissions in workspace
+  rpc GetUserPermissions(GetUserPermissionsRequest) returns (GetUserPermissionsResponse);
+
+  // Get user roles in workspace
+  rpc GetUserRoles(GetUserRolesRequest) returns (GetUserRolesResponse);
+}
+
+// Permission checks
+message CheckPermissionRequest {
+  string user_id = 1;
+  string workspace_id = 2;
+  string resource_type = 3;
+  string resource_id = 4;
+  string action = 5;
+  map<string, string> context = 6;
+}
+
+message CheckPermissionResponse {
+  bool is_authorized = 1;
+  string reason = 2;
+  repeated string matched_policies = 3;
+  google.protobuf.Timestamp evaluated_at = 4;
+}
+
+message CheckPermissionsRequest {
+  string user_id = 1;
+  string workspace_id = 2;
+  repeated PermissionCheck checks = 3;
+}
+
+message PermissionCheck {
+  string check_id = 1;
+  string resource_type = 2;
+  string resource_id = 3;
+  string action = 4;
+  map<string, string> context = 5;
+}
+
+message CheckPermissionsResponse {
+  repeated PermissionCheckResult results = 1;
+}
+
+message PermissionCheckResult {
+  string check_id = 1;
+  bool is_authorized = 2;
+  string reason = 3;
+}
+
+// Policy evaluation
+message EvaluatePolicyRequest {
+  string policy_name = 1;
+  string user_id = 2;
+  string workspace_id = 3;
+  map<string, string> attributes = 4;
+  map<string, string> resource_attributes = 5;
+  map<string, string> environment_attributes = 6;
+}
+
+message EvaluatePolicyResponse {
+  bool is_allowed = 1;
+  string decision = 2;
+  repeated string applicable_rules = 3;
+  string reason = 4;
+}
+
+// User permissions and roles
+message GetUserPermissionsRequest {
+  string user_id = 1;
+  string workspace_id = 2;
+}
+
+message GetUserPermissionsResponse {
+  usp.common.GrpcResponse response = 1;
+  repeated string permissions = 2;
+}
+
+message GetUserRolesRequest {
+  string user_id = 1;
+  string workspace_id = 2;
+}
+
+message GetUserRolesResponse {
+  usp.common.GrpcResponse response = 1;
+  repeated RoleData roles = 2;
+}
+
+message RoleData {
+  string role_id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string permissions = 4;
+}
