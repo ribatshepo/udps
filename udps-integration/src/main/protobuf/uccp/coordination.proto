@@ -16,6 +16,19 @@ service ServiceDiscovery {
   rpc WatchServices(WatchServicesRequest) returns (stream ServiceEvent);
 }
 
+// --- Distributed Locking ---
+service LockService {
+  rpc AcquireLock(AcquireLockRequest) returns (AcquireLockResponse);
+  rpc ReleaseLock(ReleaseLockRequest) returns (uccp.common.Response);
+  rpc RenewLock(RenewLockRequest) returns (uccp.common.Response);
+  rpc TryLock(TryLockRequest) returns (TryLockResponse);
+  rpc AcquireReadLock(AcquireReadLockRequest) returns (AcquireLockResponse);
+  rpc AcquireSemaphore(AcquireSemaphoreRequest) returns (AcquireSemaphoreResponse);
+  rpc ReleaseSemaphore(ReleaseSemaphoreRequest) returns (uccp.common.Response);
+  rpc WaitBarrier(WaitBarrierRequest) returns (WaitBarrierResponse);
+  rpc ListLocks(ListLocksRequest) returns (ListLocksResponse);
+}
+
 // Service Registration messages
 message RegisterRequest {
   string service_name = 1;
@@ -126,4 +139,113 @@ message ServiceEvent {
   EventType type = 1;
   ServiceInstance service = 2;
   google.protobuf.Timestamp timestamp = 3;
+}
+
+// Lock messages
+message AcquireLockRequest {
+  string lock_name = 1;
+  string namespace = 2;
+  string owner = 3;
+  google.protobuf.Duration ttl = 4;
+  google.protobuf.Duration wait_timeout = 5;
+  int32 priority = 6;
+}
+
+message AcquireLockResponse {
+  uccp.common.Response response = 1;
+  bool acquired = 2;
+  string lock_token = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message ReleaseLockRequest {
+  string lock_name = 1;
+  string namespace = 2;
+  string lock_token = 3;
+}
+
+message RenewLockRequest {
+  string lock_name = 1;
+  string namespace = 2;
+  string lock_token = 3;
+  google.protobuf.Duration ttl = 4;
+}
+
+message TryLockRequest {
+  string lock_name = 1;
+  string namespace = 2;
+  string owner = 3;
+  google.protobuf.Duration ttl = 4;
+}
+
+message TryLockResponse {
+  uccp.common.Response response = 1;
+  bool acquired = 2;
+  string lock_token = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message AcquireReadLockRequest {
+  string lock_name = 1;
+  string namespace = 2;
+  string owner = 3;
+  google.protobuf.Duration ttl = 4;
+  google.protobuf.Duration wait_timeout = 5;
+}
+
+message AcquireSemaphoreRequest {
+  string semaphore_name = 1;
+  string namespace = 2;
+  string owner = 3;
+  int32 count = 4;
+  google.protobuf.Duration ttl = 5;
+  google.protobuf.Duration wait_timeout = 6;
+}
+
+message AcquireSemaphoreResponse {
+  uccp.common.Response response = 1;
+  bool acquired = 2;
+  string semaphore_token = 3;
+}
+
+message ReleaseSemaphoreRequest {
+  string semaphore_name = 1;
+  string namespace = 2;
+  string semaphore_token = 3;
+  int32 count = 4;
+}
+
+message WaitBarrierRequest {
+  string barrier_name = 1;
+  string namespace = 2;
+  string participant_id = 3;
+  int32 expected_participants = 4;
+  google.protobuf.Duration timeout = 5;
+}
+
+message WaitBarrierResponse {
+  uccp.common.Response response = 1;
+  bool released = 2;
+  int32 participants_arrived = 3;
+}
+
+message ListLocksRequest {
+  string namespace = 1;
+  uccp.common.PaginationRequest pagination = 2;
+}
+
+message ListLocksResponse {
+  uccp.common.Response response = 1;
+  repeated LockInfo locks = 2;
+  uccp.common.PaginationResponse pagination = 3;
+}
+
+message LockInfo {
+  string lock_name = 1;
+  string namespace = 2;
+  string owner = 3;
+  string lock_type = 4;
+  google.protobuf.Timestamp acquired_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  int32 waiters_count = 7;
 }

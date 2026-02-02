@@ -1,0 +1,833 @@
+syntax = "proto3";
+
+package ustrp.integration;
+
+option java_package = "io.gbmm.udps.integration.ustrp";
+option java_multiple_files = true;
+option csharp_namespace = "USTRP.Integration.Grpc";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// =============================================================================
+// StreamSchemaService -- Schema exchange between USTRP and UDPS.
+//
+// Enables USTRP streaming jobs to register, retrieve, validate, and list
+// schemas stored in the UDPS catalog so that stream-to-storage pipelines
+// operate against a shared, versioned schema contract.
+// =============================================================================
+service StreamSchemaService {
+  // Register a new schema version derived from a streaming source.
+  rpc RegisterSchema(RegisterSchemaRequest) returns (RegisterSchemaResponse);
+
+  // Retrieve a schema by identifier and optional version.
+  rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
+
+  // List schemas with optional filters and pagination.
+  rpc ListSchemas(ListSchemasRequest) returns (ListSchemasResponse);
+
+  // Validate a schema against UDPS catalog rules without persisting it.
+  rpc ValidateSchema(ValidateSchemaRequest) returns (ValidateSchemaResponse);
+}
+
+// =============================================================================
+// StreamJobConfigService -- Job configuration for stream-to-storage pipelines.
+//
+// Provides USTRP with the storage-side configuration that governs how
+// streaming data lands in UDPS-managed stores (format, partitioning,
+// compaction, retention) and the field-level mapping between stream
+// events and storage columns.
+// =============================================================================
+service StreamJobConfigService {
+  // Retrieve the current storage configuration for a stream pipeline.
+  rpc GetStorageConfig(GetStorageConfigRequest) returns (GetStorageConfigResponse);
+
+  // Update the storage configuration for a stream pipeline.
+  rpc UpdateStorageConfig(UpdateStorageConfigRequest) returns (UpdateStorageConfigResponse);
+
+  // Retrieve the field-level mapping between stream events and storage columns.
+  rpc GetIngestionMapping(GetIngestionMappingRequest) returns (GetIngestionMappingResponse);
+}
+
+// =============================================================================
+// StreamLineageService -- Data lineage tracking for streaming pipelines.
+//
+// Allows USTRP to report lineage events as data flows through streaming
+// jobs and into UDPS storage, and allows consumers to query the resulting
+// lineage graph.
+// =============================================================================
+service StreamLineageService {
+  // Report a lineage event from a streaming pipeline stage.
+  rpc ReportLineageEvent(ReportLineageEventRequest) returns (ReportLineageEventResponse);
+
+  // Retrieve lineage edges for a specific entity (table, topic, or job).
+  rpc GetLineage(GetLineageRequest) returns (GetLineageResponse);
+
+  // Retrieve the full lineage DAG rooted at a given entity.
+  rpc GetLineageGraph(GetLineageGraphRequest) returns (GetLineageGraphResponse);
+}
+
+// =============================================================================
+// Common Types
+// =============================================================================
+
+// Standard response envelope consistent with existing UDPS and USTRP protos.
+message IntegrationResponse {
+  // Whether the operation completed successfully.
+  bool success = 1;
+  // Human-readable result or error message.
+  string message = 2;
+  // Machine-readable error code (empty on success).
+  string error_code = 3;
+  // Correlation identifier for distributed tracing.
+  string correlation_id = 4;
+  // Server-side timestamp of the response.
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// Pagination parameters for list requests.
+message PaginationRequest {
+  // Zero-based page index.
+  int32 page = 1;
+  // Maximum number of items per page.
+  int32 page_size = 2;
+  // Field name to sort results by.
+  string sort_by = 3;
+  // Sort in descending order when true.
+  bool descending = 4;
+}
+
+// Pagination metadata returned with list responses.
+message PaginationResponse {
+  // Current page index.
+  int32 page = 1;
+  // Number of items per page.
+  int32 page_size = 2;
+  // Total number of matching items across all pages.
+  int32 total_count = 3;
+  // Total number of pages available.
+  int32 total_pages = 4;
+}
+
+// =============================================================================
+// Schema Types
+// =============================================================================
+
+// Data type of a schema field, covering types common to both streaming
+// events and UDPS catalog columns.
+enum FieldType {
+  // Unspecified field type.
+  FIELD_TYPE_UNSPECIFIED = 0;
+  // Boolean value.
+  FIELD_TYPE_BOOLEAN = 1;
+  // 32-bit signed integer.
+  FIELD_TYPE_INT32 = 2;
+  // 64-bit signed integer.
+  FIELD_TYPE_INT64 = 3;
+  // 32-bit IEEE 754 floating point.
+  FIELD_TYPE_FLOAT = 4;
+  // 64-bit IEEE 754 floating point.
+  FIELD_TYPE_DOUBLE = 5;
+  // UTF-8 encoded string.
+  FIELD_TYPE_STRING = 6;
+  // Arbitrary binary data.
+  FIELD_TYPE_BYTES = 7;
+  // Timestamp with timezone.
+  FIELD_TYPE_TIMESTAMP = 8;
+  // Calendar date without time component.
+  FIELD_TYPE_DATE = 9;
+  // Arbitrary-precision decimal (scale/precision in field metadata).
+  FIELD_TYPE_DECIMAL = 10;
+  // Nested message or struct.
+  FIELD_TYPE_STRUCT = 11;
+  // Ordered list of values.
+  FIELD_TYPE_ARRAY = 12;
+  // Key-value map.
+  FIELD_TYPE_MAP = 13;
+  // Fixed-length byte array.
+  FIELD_TYPE_FIXED_BYTES = 14;
+  // UUID represented as a string.
+  FIELD_TYPE_UUID = 15;
+}
+
+// Compatibility mode for schema evolution.
+enum CompatibilityMode {
+  // Compatibility not specified; server applies its default.
+  COMPATIBILITY_MODE_UNSPECIFIED = 0;
+  // New schema can read data written with previous schema.
+  COMPATIBILITY_MODE_BACKWARD = 1;
+  // Previous schema can read data written with new schema.
+  COMPATIBILITY_MODE_FORWARD = 2;
+  // Both backward and forward compatible.
+  COMPATIBILITY_MODE_FULL = 3;
+  // No compatibility enforcement.
+  COMPATIBILITY_MODE_NONE = 4;
+}
+
+// Serialization format of stream events.
+enum SerializationFormat {
+  // Format not specified.
+  SERIALIZATION_FORMAT_UNSPECIFIED = 0;
+  // Apache Avro.
+  SERIALIZATION_FORMAT_AVRO = 1;
+  // Protocol Buffers.
+  SERIALIZATION_FORMAT_PROTOBUF = 2;
+  // JSON.
+  SERIALIZATION_FORMAT_JSON = 3;
+  // JSON with a JSON Schema definition.
+  SERIALIZATION_FORMAT_JSON_SCHEMA = 4;
+}
+
+// A single field within a schema definition.
+message SchemaField {
+  // Field name (snake_case recommended).
+  string name = 1;
+  // Data type of the field.
+  FieldType field_type = 2;
+  // Whether the field may contain null values.
+  bool nullable = 3;
+  // Human-readable description of the field.
+  string description = 4;
+  // Default value expressed as a JSON-encoded string (empty if none).
+  string default_value = 5;
+  // Position of this field in the schema (one-based).
+  int32 ordinal_position = 6;
+  // Nested fields when field_type is STRUCT.
+  repeated SchemaField nested_fields = 7;
+  // Element type when field_type is ARRAY.
+  FieldType array_element_type = 8;
+  // Key type when field_type is MAP.
+  FieldType map_key_type = 9;
+  // Value type when field_type is MAP.
+  FieldType map_value_type = 10;
+  // Additional field-level metadata (e.g. precision, scale, format hints).
+  map<string, string> metadata = 11;
+}
+
+// A versioned schema definition.
+message StreamSchema {
+  // Unique schema identifier.
+  string schema_id = 1;
+  // Fully qualified schema name (e.g. "tenant.namespace.topic_name").
+  string name = 2;
+  // Schema version number (monotonically increasing).
+  int32 version = 3;
+  // Serialization format of the schema.
+  SerializationFormat format = 4;
+  // Compatibility mode governing schema evolution.
+  CompatibilityMode compatibility = 5;
+  // Ordered list of fields in this schema.
+  repeated SchemaField fields = 6;
+  // Human-readable description.
+  string description = 7;
+  // Tenant that owns this schema.
+  string tenant_id = 8;
+  // Source Kafka topic this schema was derived from.
+  string source_topic = 9;
+  // Fingerprint hash of the schema content for deduplication.
+  string fingerprint = 10;
+  // When this schema version was created.
+  google.protobuf.Timestamp created_at = 11;
+  // Identity of the creator (user or service principal).
+  string created_by = 12;
+  // User-defined tags for categorization.
+  map<string, string> tags = 13;
+  // Raw schema definition (e.g. Avro JSON, protobuf descriptor bytes).
+  string raw_definition = 14;
+}
+
+// =============================================================================
+// StreamSchemaService Messages
+// =============================================================================
+
+// Request to register a new schema version.
+message RegisterSchemaRequest {
+  // Tenant that owns this schema.
+  string tenant_id = 1;
+  // Fully qualified schema name.
+  string name = 2;
+  // Serialization format of the schema.
+  SerializationFormat format = 3;
+  // Compatibility mode for this schema subject.
+  CompatibilityMode compatibility = 4;
+  // Ordered list of fields in this schema.
+  repeated SchemaField fields = 5;
+  // Human-readable description.
+  string description = 6;
+  // Source Kafka topic this schema was derived from.
+  string source_topic = 7;
+  // User-defined tags for categorization.
+  map<string, string> tags = 8;
+  // Raw schema definition (e.g. Avro JSON, protobuf descriptor bytes).
+  string raw_definition = 9;
+}
+
+// Response after registering a schema.
+message RegisterSchemaResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // Unique identifier assigned to the registered schema.
+  string schema_id = 2;
+  // Assigned version number.
+  int32 version = 3;
+  // Computed fingerprint hash of the schema content.
+  string fingerprint = 4;
+  // Whether the schema already existed and was returned without modification.
+  bool already_exists = 5;
+}
+
+// Request to retrieve a schema.
+message GetSchemaRequest {
+  // Unique schema identifier. Provide either schema_id or name.
+  string schema_id = 1;
+  // Fully qualified schema name. Used when schema_id is empty.
+  string name = 2;
+  // Specific version to retrieve (0 or omitted means latest).
+  int32 version = 3;
+  // Tenant identifier for name-based lookups.
+  string tenant_id = 4;
+}
+
+// Response with the requested schema.
+message GetSchemaResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // The requested schema.
+  StreamSchema schema = 2;
+}
+
+// Request to list schemas with optional filters.
+message ListSchemasRequest {
+  // Filter by tenant identifier.
+  string tenant_id = 1;
+  // Filter by schema name prefix.
+  string name_prefix = 2;
+  // Filter by source Kafka topic.
+  string source_topic = 3;
+  // Filter by serialization format.
+  SerializationFormat format_filter = 4;
+  // Filter by tags (all specified tags must match).
+  map<string, string> tag_filters = 5;
+  // Pagination parameters.
+  PaginationRequest pagination = 6;
+}
+
+// Response with a paginated list of schemas.
+message ListSchemasResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // List of schemas matching the filters.
+  repeated StreamSchema schemas = 2;
+  // Pagination metadata.
+  PaginationResponse pagination = 3;
+}
+
+// Request to validate a schema.
+message ValidateSchemaRequest {
+  // Tenant that owns the schema subject.
+  string tenant_id = 1;
+  // Fully qualified schema name (for compatibility checks against prior versions).
+  string name = 2;
+  // Serialization format of the schema.
+  SerializationFormat format = 3;
+  // Compatibility mode to validate against.
+  CompatibilityMode compatibility = 4;
+  // Ordered list of fields to validate.
+  repeated SchemaField fields = 5;
+  // Raw schema definition to validate.
+  string raw_definition = 6;
+}
+
+// Response with schema validation results.
+message ValidateSchemaResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // Whether the schema is valid.
+  bool is_valid = 2;
+  // Whether the schema is compatible with prior versions of the same subject.
+  bool is_compatible = 3;
+  // Validation errors that would prevent registration.
+  repeated SchemaValidationIssue errors = 4;
+  // Validation warnings that do not prevent registration.
+  repeated SchemaValidationIssue warnings = 5;
+}
+
+// A single schema validation issue.
+message SchemaValidationIssue {
+  // Field path that has the issue (dot-separated for nested fields).
+  string field_path = 1;
+  // Human-readable description of the issue.
+  string message = 2;
+  // Machine-readable issue code.
+  string code = 3;
+  // Severity level of the issue.
+  ValidationSeverity severity = 4;
+}
+
+// Severity of a schema validation issue.
+enum ValidationSeverity {
+  // Severity not specified.
+  VALIDATION_SEVERITY_UNSPECIFIED = 0;
+  // Informational note.
+  VALIDATION_SEVERITY_INFO = 1;
+  // Non-blocking warning.
+  VALIDATION_SEVERITY_WARNING = 2;
+  // Blocking error.
+  VALIDATION_SEVERITY_ERROR = 3;
+}
+
+// =============================================================================
+// Storage Configuration Types
+// =============================================================================
+
+// Storage format for persisted data in UDPS.
+enum StorageFormat {
+  // Format not specified.
+  STORAGE_FORMAT_UNSPECIFIED = 0;
+  // Apache Parquet columnar format.
+  STORAGE_FORMAT_PARQUET = 1;
+  // Apache ORC columnar format.
+  STORAGE_FORMAT_ORC = 2;
+  // Apache Avro row-based format.
+  STORAGE_FORMAT_AVRO = 3;
+  // Delta Lake table format.
+  STORAGE_FORMAT_DELTA = 4;
+  // Apache Iceberg table format.
+  STORAGE_FORMAT_ICEBERG = 5;
+}
+
+// Compression algorithm for stored data.
+enum CompressionCodec {
+  // Codec not specified; server applies its default.
+  COMPRESSION_CODEC_UNSPECIFIED = 0;
+  // No compression.
+  COMPRESSION_CODEC_NONE = 1;
+  // Snappy compression.
+  COMPRESSION_CODEC_SNAPPY = 2;
+  // Gzip compression.
+  COMPRESSION_CODEC_GZIP = 3;
+  // LZ4 compression.
+  COMPRESSION_CODEC_LZ4 = 4;
+  // Zstandard compression.
+  COMPRESSION_CODEC_ZSTD = 5;
+  // Brotli compression.
+  COMPRESSION_CODEC_BROTLI = 6;
+}
+
+// Partitioning strategy for storage tables.
+enum PartitionStrategy {
+  // Strategy not specified.
+  PARTITION_STRATEGY_UNSPECIFIED = 0;
+  // Partition by calendar date.
+  PARTITION_STRATEGY_DATE = 1;
+  // Partition by calendar hour.
+  PARTITION_STRATEGY_HOUR = 2;
+  // Partition by a categorical column value.
+  PARTITION_STRATEGY_VALUE = 3;
+  // Hash-based partitioning across a fixed bucket count.
+  PARTITION_STRATEGY_HASH = 4;
+  // No partitioning.
+  PARTITION_STRATEGY_NONE = 5;
+}
+
+// Storage tier for lifecycle management.
+enum StorageTier {
+  // Tier not specified.
+  STORAGE_TIER_UNSPECIFIED = 0;
+  // Hot tier for low-latency access.
+  STORAGE_TIER_HOT = 1;
+  // Warm tier for less frequent access.
+  STORAGE_TIER_WARM = 2;
+  // Cold tier for archival storage.
+  STORAGE_TIER_COLD = 3;
+  // Glacier tier for long-term retention.
+  STORAGE_TIER_ARCHIVE = 4;
+}
+
+// Partitioning configuration for a storage table.
+message PartitionConfig {
+  // Partitioning strategy.
+  PartitionStrategy strategy = 1;
+  // Column name(s) to partition by.
+  repeated string partition_columns = 2;
+  // Number of hash buckets (for HASH strategy).
+  int32 bucket_count = 3;
+}
+
+// Compaction configuration for a storage table.
+message CompactionConfig {
+  // Whether automatic compaction is enabled.
+  bool enabled = 1;
+  // Minimum number of files to trigger compaction.
+  int32 min_files_to_compact = 2;
+  // Target file size in bytes after compaction.
+  int64 target_file_size_bytes = 3;
+  // Maximum number of files to compact in a single pass.
+  int32 max_files_per_compaction = 4;
+}
+
+// Retention policy for a storage table.
+message RetentionPolicy {
+  // Number of days to retain data (0 means indefinite).
+  int32 retention_days = 1;
+  // Storage tier to move data to after the retention period.
+  StorageTier archive_tier = 2;
+  // Whether to delete data after the retention period instead of archiving.
+  bool delete_after_retention = 3;
+}
+
+// Full storage configuration for a stream-to-storage pipeline.
+message StorageConfig {
+  // Unique configuration identifier.
+  string config_id = 1;
+  // Pipeline identifier this configuration belongs to.
+  string pipeline_id = 2;
+  // Tenant that owns this configuration.
+  string tenant_id = 3;
+  // Target database in the UDPS catalog.
+  string target_database = 4;
+  // Target schema in the UDPS catalog.
+  string target_schema = 5;
+  // Target table name in the UDPS catalog.
+  string target_table = 6;
+  // Storage format for persisted data.
+  StorageFormat format = 7;
+  // Compression algorithm.
+  CompressionCodec compression = 8;
+  // Partitioning configuration.
+  PartitionConfig partitioning = 9;
+  // Compaction configuration.
+  CompactionConfig compaction = 10;
+  // Retention policy.
+  RetentionPolicy retention = 11;
+  // Current storage tier.
+  StorageTier tier = 12;
+  // Flush interval -- how often buffered stream data is written to storage.
+  int64 flush_interval_seconds = 13;
+  // Maximum buffer size in bytes before a forced flush.
+  int64 max_buffer_bytes = 14;
+  // Maximum number of records to buffer before a forced flush.
+  int64 max_buffer_records = 15;
+  // Schema identifier from StreamSchemaService for the target table.
+  string schema_id = 16;
+  // Additional storage-specific properties.
+  map<string, string> properties = 17;
+  // When this configuration was created.
+  google.protobuf.Timestamp created_at = 18;
+  // When this configuration was last updated.
+  google.protobuf.Timestamp updated_at = 19;
+}
+
+// =============================================================================
+// StreamJobConfigService Messages
+// =============================================================================
+
+// Request to retrieve the storage configuration for a pipeline.
+message GetStorageConfigRequest {
+  // Pipeline identifier.
+  string pipeline_id = 1;
+  // Tenant identifier.
+  string tenant_id = 2;
+}
+
+// Response with the storage configuration.
+message GetStorageConfigResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // The storage configuration.
+  StorageConfig config = 2;
+}
+
+// Request to update the storage configuration for a pipeline.
+message UpdateStorageConfigRequest {
+  // Pipeline identifier.
+  string pipeline_id = 1;
+  // Tenant identifier.
+  string tenant_id = 2;
+  // Updated storage format (UNSPECIFIED means no change).
+  StorageFormat format = 3;
+  // Updated compression codec (UNSPECIFIED means no change).
+  CompressionCodec compression = 4;
+  // Updated partitioning configuration (null means no change).
+  PartitionConfig partitioning = 5;
+  // Updated compaction configuration (null means no change).
+  CompactionConfig compaction = 6;
+  // Updated retention policy (null means no change).
+  RetentionPolicy retention = 7;
+  // Updated storage tier (UNSPECIFIED means no change).
+  StorageTier tier = 8;
+  // Updated flush interval in seconds (0 means no change).
+  int64 flush_interval_seconds = 9;
+  // Updated maximum buffer size in bytes (0 means no change).
+  int64 max_buffer_bytes = 10;
+  // Updated maximum buffer record count (0 means no change).
+  int64 max_buffer_records = 11;
+  // Updated additional storage-specific properties (replaces existing).
+  map<string, string> properties = 12;
+}
+
+// Response after updating the storage configuration.
+message UpdateStorageConfigResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // The updated storage configuration.
+  StorageConfig config = 2;
+}
+
+// Mapping direction between a stream field and a storage column.
+enum MappingAction {
+  // Action not specified.
+  MAPPING_ACTION_UNSPECIFIED = 0;
+  // Direct mapping with no transformation.
+  MAPPING_ACTION_DIRECT = 1;
+  // Rename the field.
+  MAPPING_ACTION_RENAME = 2;
+  // Cast to a different type.
+  MAPPING_ACTION_CAST = 3;
+  // Derive the value from an expression.
+  MAPPING_ACTION_DERIVE = 4;
+  // Exclude this field from storage.
+  MAPPING_ACTION_EXCLUDE = 5;
+  // Use a constant default value.
+  MAPPING_ACTION_DEFAULT = 6;
+}
+
+// A single field-level mapping between a stream event and a storage column.
+message FieldMapping {
+  // Source field name in the stream event.
+  string source_field = 1;
+  // Target column name in the storage table.
+  string target_column = 2;
+  // Type of mapping action.
+  MappingAction action = 3;
+  // Source field data type.
+  FieldType source_type = 4;
+  // Target column data type.
+  FieldType target_type = 5;
+  // Transformation expression (for CAST and DERIVE actions).
+  string expression = 6;
+  // Default value (for DEFAULT action, JSON-encoded).
+  string default_value = 7;
+  // Whether this field is required for a valid storage record.
+  bool required = 8;
+}
+
+// Complete ingestion mapping between a stream and a storage table.
+message IngestionMapping {
+  // Unique mapping identifier.
+  string mapping_id = 1;
+  // Pipeline identifier this mapping belongs to.
+  string pipeline_id = 2;
+  // Schema identifier of the source stream schema.
+  string source_schema_id = 3;
+  // Schema identifier of the target storage schema.
+  string target_schema_id = 4;
+  // Ordered list of field-level mappings.
+  repeated FieldMapping field_mappings = 5;
+  // When this mapping was created.
+  google.protobuf.Timestamp created_at = 6;
+  // When this mapping was last updated.
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// Request to retrieve the ingestion mapping for a pipeline.
+message GetIngestionMappingRequest {
+  // Pipeline identifier.
+  string pipeline_id = 1;
+  // Tenant identifier.
+  string tenant_id = 2;
+}
+
+// Response with the ingestion mapping.
+message GetIngestionMappingResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // The ingestion mapping.
+  IngestionMapping mapping = 2;
+}
+
+// =============================================================================
+// Lineage Types
+// =============================================================================
+
+// Type of entity in the lineage graph.
+enum LineageEntityType {
+  // Entity type not specified.
+  LINEAGE_ENTITY_TYPE_UNSPECIFIED = 0;
+  // A Kafka topic.
+  LINEAGE_ENTITY_TYPE_TOPIC = 1;
+  // A USTRP streaming job.
+  LINEAGE_ENTITY_TYPE_STREAM_JOB = 2;
+  // A UDPS catalog table.
+  LINEAGE_ENTITY_TYPE_TABLE = 3;
+  // A UDPS catalog column.
+  LINEAGE_ENTITY_TYPE_COLUMN = 4;
+  // A UDPS catalog database.
+  LINEAGE_ENTITY_TYPE_DATABASE = 5;
+  // A UDPS catalog schema (namespace).
+  LINEAGE_ENTITY_TYPE_SCHEMA = 6;
+}
+
+// Type of lineage event emitted by a streaming pipeline stage.
+enum LineageEventType {
+  // Event type not specified.
+  LINEAGE_EVENT_TYPE_UNSPECIFIED = 0;
+  // Data was read from a source.
+  LINEAGE_EVENT_TYPE_READ = 1;
+  // Data was written to a destination.
+  LINEAGE_EVENT_TYPE_WRITE = 2;
+  // Data was transformed.
+  LINEAGE_EVENT_TYPE_TRANSFORM = 3;
+  // Data was aggregated.
+  LINEAGE_EVENT_TYPE_AGGREGATE = 4;
+  // Data was filtered.
+  LINEAGE_EVENT_TYPE_FILTER = 5;
+  // Data was joined with another source.
+  LINEAGE_EVENT_TYPE_JOIN = 6;
+  // A schema was applied or evolved.
+  LINEAGE_EVENT_TYPE_SCHEMA_CHANGE = 7;
+}
+
+// Direction for lineage traversal queries.
+enum LineageDirection {
+  // Direction not specified; returns both upstream and downstream.
+  LINEAGE_DIRECTION_UNSPECIFIED = 0;
+  // Traverse upstream (towards sources).
+  LINEAGE_DIRECTION_UPSTREAM = 1;
+  // Traverse downstream (towards sinks).
+  LINEAGE_DIRECTION_DOWNSTREAM = 2;
+  // Traverse in both directions.
+  LINEAGE_DIRECTION_BOTH = 3;
+}
+
+// An entity (node) in the lineage graph.
+message LineageEntity {
+  // Unique entity identifier.
+  string entity_id = 1;
+  // Type of entity.
+  LineageEntityType entity_type = 2;
+  // Fully qualified name of the entity.
+  string qualified_name = 3;
+  // Human-readable display name.
+  string display_name = 4;
+  // Entity-specific metadata.
+  map<string, string> metadata = 5;
+}
+
+// A directed edge in the lineage graph.
+message LineageEdge {
+  // Unique edge identifier.
+  string edge_id = 1;
+  // Source entity identifier.
+  string source_entity_id = 2;
+  // Target entity identifier.
+  string target_entity_id = 3;
+  // Type of event that created this edge.
+  LineageEventType event_type = 4;
+  // Streaming job identifier that produced this edge.
+  string job_id = 5;
+  // Pipeline identifier.
+  string pipeline_id = 6;
+  // When this edge was created.
+  google.protobuf.Timestamp created_at = 7;
+  // Additional edge metadata (e.g. transformation expression, record count).
+  map<string, string> metadata = 8;
+}
+
+// =============================================================================
+// StreamLineageService Messages
+// =============================================================================
+
+// A lineage event reported by a streaming pipeline stage.
+message StreamLineageEvent {
+  // Type of lineage event.
+  LineageEventType event_type = 1;
+  // Streaming job identifier that emitted this event.
+  string job_id = 2;
+  // Pipeline identifier.
+  string pipeline_id = 3;
+  // Tenant identifier.
+  string tenant_id = 4;
+  // Source entities involved in this event.
+  repeated LineageEntity source_entities = 5;
+  // Target entities involved in this event.
+  repeated LineageEntity target_entities = 6;
+  // When this event occurred.
+  google.protobuf.Timestamp event_time = 7;
+  // Number of records processed in this event.
+  int64 record_count = 8;
+  // Number of bytes processed in this event.
+  int64 byte_count = 9;
+  // Schema identifier applied during this event (if applicable).
+  string schema_id = 10;
+  // Transformation expression or description (for TRANSFORM events).
+  string transformation = 11;
+  // Event-specific metadata as a dynamic structure.
+  google.protobuf.Struct event_metadata = 12;
+}
+
+// Request to report a lineage event.
+message ReportLineageEventRequest {
+  // The lineage event to report.
+  StreamLineageEvent event = 1;
+}
+
+// Response after reporting a lineage event.
+message ReportLineageEventResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // Identifiers of lineage edges created from this event.
+  repeated string edge_ids = 2;
+}
+
+// Request to retrieve lineage edges for a specific entity.
+message GetLineageRequest {
+  // Entity identifier to query lineage for.
+  string entity_id = 1;
+  // Direction of lineage traversal.
+  LineageDirection direction = 2;
+  // Maximum traversal depth (1 means direct edges only).
+  int32 max_depth = 3;
+  // Filter by lineage event type.
+  LineageEventType event_type_filter = 4;
+  // Filter by pipeline identifier.
+  string pipeline_id = 5;
+  // Pagination parameters.
+  PaginationRequest pagination = 6;
+}
+
+// Response with lineage edges for the requested entity.
+message GetLineageResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // Lineage edges matching the query.
+  repeated LineageEdge edges = 2;
+  // Pagination metadata.
+  PaginationResponse pagination = 3;
+}
+
+// Request to retrieve a full lineage DAG.
+message GetLineageGraphRequest {
+  // Root entity identifier for the graph traversal.
+  string root_entity_id = 1;
+  // Direction of traversal.
+  LineageDirection direction = 2;
+  // Maximum traversal depth from the root.
+  int32 max_depth = 3;
+  // Filter by tenant identifier.
+  string tenant_id = 4;
+  // Filter by pipeline identifier.
+  string pipeline_id = 5;
+}
+
+// Response with the full lineage DAG.
+message GetLineageGraphResponse {
+  // Standard response envelope.
+  IntegrationResponse response = 1;
+  // All entities (nodes) in the lineage graph.
+  repeated LineageEntity entities = 2;
+  // All edges in the lineage graph.
+  repeated LineageEdge edges = 3;
+  // Root entity identifier the graph was built from.
+  string root_entity_id = 4;
+}
