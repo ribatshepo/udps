@@ -1,0 +1,158 @@
+# =============================================================================
+# UDPS NetworkPolicy - Network Segmentation
+# =============================================================================
+# Implements network segmentation for UDPS pods following zero-trust principles.
+# Restricts ingress and egress to only necessary communication paths.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: udps-network-policy
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: seri-sa-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: udps
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow HTTPS traffic from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 8443
+
+    # Allow gRPC traffic from within the platform namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: seri-sa-platform
+      ports:
+        - protocol: TCP
+          port: 50060
+
+    # Allow metrics scraping from Prometheus
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+    # Allow health checks from within namespace (for readiness/liveness probes)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8081
+
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Allow PostgreSQL connections
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Allow Redis connections
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Allow Kafka connections
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+
+    # Allow MinIO connections
+    - to:
+        - podSelector:
+            matchLabels:
+              app: minio
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+
+    # Allow UCCP gRPC and metrics connections
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: uccp
+      ports:
+        - protocol: TCP
+          port: 50000
+        - protocol: TCP
+          port: 9100
+
+    # Allow OpenTelemetry collector
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318

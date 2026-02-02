@@ -1,0 +1,21 @@
+{{- if and .Values.prometheus.enabled .Values.prometheus.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "udps.fullname" . }}
+  namespace: {{ include "udps.namespace" . }}
+  labels:
+    {{- include "udps.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "udps.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: metrics
+      path: {{ .Values.config.observability.prometheus.path }}
+      interval: {{ .Values.prometheus.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.prometheus.serviceMonitor.scrapeTimeout }}
+  namespaceSelector:
+    matchNames:
+      - {{ include "udps.namespace" . }}
+{{- end }}

@@ -1,0 +1,50 @@
+# =============================================================================
+# UDPS Role - RBAC Permissions
+# =============================================================================
+# Defines minimal permissions required by UDPS pods. Follows principle of
+# least privilege for data platform operations.
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: udps-role
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: seri-sa-platform
+rules:
+  # Allow pods to read their own pod information for health checks and diagnostics
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow reading pod logs for troubleshooting (own namespace only)
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+
+  # Allow viewing events for debugging and monitoring
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow reading configmaps for configuration hot-reload
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow reading secrets for credential rotation detection
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow reading endpoints for service discovery
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow reading services for load balancer health checks
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]

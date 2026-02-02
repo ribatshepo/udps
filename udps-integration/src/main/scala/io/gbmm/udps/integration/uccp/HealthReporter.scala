@@ -47,12 +47,19 @@ final case class HealthDetails(
     databaseReachable: Boolean
 )
 
+final case class ComponentHealth(
+    componentName: String,
+    status: HealthReportStatus,
+    metadata: Map[String, String]
+)
+
 // ---------------------------------------------------------------------------
 // HealthCheck trait -- abstraction for gathering health metrics
 // ---------------------------------------------------------------------------
 
 trait HealthCheck {
   def check: IO[HealthDetails]
+  def checkComponents: IO[List[ComponentHealth]] = IO.pure(Nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +103,52 @@ final class HealthReporter private (
   private val unhealthyDiskThreshold: Double    = config.unhealthyDiskThreshold
   private val unhealthyErrorRateThreshold: Double = config.unhealthyErrorRateThreshold
 
+  /** Convert a HealthReportStatus to a short label string. */
+  private def statusLabel(status: HealthReportStatus): String =
+    status match {
+      case HealthReportStatus.Healthy      => "HEALTHY"
+      case HealthReportStatus.Degraded(_)  => "DEGRADED"
+      case HealthReportStatus.Unhealthy(_) => "UNHEALTHY"
+    }
+
+  /** Aggregate component-level statuses into a single service-level status. */
+  def determineComponentStatus(components: List[ComponentHealth]): HealthReportStatus = {
+    val hasUnhealthy = components.exists {
+      case ComponentHealth(_, _: HealthReportStatus.Unhealthy, _) => true
+      case _ => false
+    }
+    val hasDegraded = components.exists {
+      case ComponentHealth(_, _: HealthReportStatus.Degraded, _) => true
+      case _ => false
+    }
+
+    if (hasUnhealthy) {
+      val reasons = components.collect {
+        case ComponentHealth(name, HealthReportStatus.Unhealthy(rs), _) =>
+          s"$name: ${rs.mkString(", ")}"
+      }
+      HealthReportStatus.Unhealthy(reasons)
+    } else if (hasDegraded) {
+      val reasons = components.collect {
+        case ComponentHealth(name, HealthReportStatus.Degraded(rs), _) =>
+          s"$name: ${rs.mkString(", ")}"
+      }
+      HealthReportStatus.Degraded(reasons)
+    } else {
+      HealthReportStatus.Healthy
+    }
+  }
+
+  /** Format component health entries as a JSON-like metadata map. */
+  private def formatComponentHealth(components: List[ComponentHealth]): Map[String, String] =
+    if (components.isEmpty) Map.empty
+    else {
+      val entries = components.map { c =>
+        s"""{"name":"${c.componentName}","status":"${statusLabel(c.status)}"}"""
+      }
+      Map("componentHealth" -> s"[${entries.mkString(",")}]")
+    }
+
   /** Evaluate health rules against the gathered details. */
   def determineStatus(details: HealthDetails): HealthReportStatus = {
     val reasons = List.newBuilder[String]
@@ -131,16 +184,19 @@ final class HealthReporter private (
 
   private def gatherAndSend(serviceId: String): IO[Unit] =
     for {
-      details <- healthCheck.check
-      status   = determineStatus(details)
-      _       <- IO(logStatus(status, details))
-      _       <- sendReport(serviceId, status, details)
+      details    <- healthCheck.check
+      components <- healthCheck.checkComponents
+      status      = if (components.nonEmpty) determineComponentStatus(components)
+                    else determineStatus(details)
+      _          <- IO(logStatus(status, details))
+      _          <- sendReport(serviceId, status, details, formatComponentHealth(components))
     } yield ()
 
   private def sendReport(
       serviceId: String,
       status: HealthReportStatus,
-      details: HealthDetails
+      details: HealthDetails,
+      componentMetadata: Map[String, String] = Map.empty
   ): IO[Unit] = {
     val protoHealth = status match {
       case HealthReportStatus.Healthy       => ProtoHealthStatus.HEALTH_STATUS_HEALTHY
@@ -155,7 +211,7 @@ final class HealthReporter private (
       "storageUsagePercent" -> f"${details.storageUsagePercent}%.2f",
       "errorRate"           -> f"${details.errorRate}%.4f",
       "databaseReachable"   -> details.databaseReachable.toString
-    ) ++ statusReasons(status)
+    ) ++ statusReasons(status) ++ componentMetadata
 
     val request = HeartbeatRequest(
       serviceId = serviceId,

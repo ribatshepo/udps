@@ -1,0 +1,94 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: seri-sa-platform-dev
+
+resources:
+  - ../../base
+
+namePrefix: dev-
+
+commonLabels:
+  environment: development
+
+patches:
+  # Development-specific deployment patches
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: udps
+      spec:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: udps
+                env:
+                  - name: UDPS_ENVIRONMENT
+                    value: "development"
+                  - name: LOG_LEVEL
+                    value: "DEBUG"
+                  - name: JVM_HEAP_MIN
+                    value: "256m"
+                  - name: JVM_HEAP_MAX
+                    value: "1g"
+                resources:
+                  requests:
+                    memory: "512Mi"
+                    cpu: "250m"
+                  limits:
+                    memory: "2Gi"
+                    cpu: "2000m"
+
+  # Development ingress hostname
+  - patch: |-
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: udps
+      spec:
+        tls:
+          - hosts:
+              - udps-dev.seri-sa.local
+            secretName: udps-ingress-tls-dev
+        rules:
+          - host: udps-dev.seri-sa.local
+
+  # Development gRPC ingress hostname
+  - patch: |-
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: udps-grpc
+      spec:
+        tls:
+          - hosts:
+              - grpc.udps-dev.seri-sa.local
+            secretName: udps-ingress-tls-dev
+        rules:
+          - host: grpc.udps-dev.seri-sa.local
+
+  # Disable HPA in development
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: udps
+      spec:
+        minReplicas: 1
+        maxReplicas: 2
+
+configMapGenerator:
+  - name: udps-config
+    behavior: merge
+    literals:
+      - OTEL_RESOURCE_ATTRIBUTES=service.namespace=seri-sa,deployment.environment=development
+      - FEATURE_LINEAGE_TRACKING=true
+      - FEATURE_QUERY_CACHE=true
+      - FEATURE_GOVERNANCE_POLICIES=false
+      - FEATURE_ARCHIVE_TIER=false
+
+images:
+  - name: ghcr.io/gbmm/udps
+    newTag: dev

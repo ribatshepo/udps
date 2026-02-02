@@ -154,49 +154,30 @@ LOG_LEVEL=INFO
 
 ### 2.3 TLS certificates
 
-The production stack requires TLS certificates. Place them in the directory structure:
-
-```
-.tls/
-├── tls.crt          # UDPS server certificate
-├── tls.key          # UDPS server private key
-├── ca.crt           # CA certificate
-├── postgres/
-│   ├── tls.crt      # PostgreSQL server certificate
-│   └── tls.key      # PostgreSQL server private key
-├── redis/
-│   ├── tls.crt      # Redis server certificate
-│   ├── tls.key      # Redis server private key
-│   └── ca.crt       # Redis CA certificate
-├── minio/
-│   ├── public.crt   # MinIO server certificate
-│   └── private.key  # MinIO server private key
-└── kafka/
-    ├── kafka.keystore.jks
-    ├── kafka.truststore.jks
-    ├── keystore-creds
-    ├── key-creds
-    └── truststore-creds
-```
-
-To generate self-signed certificates for testing:
+Generate TLS certificates using the provided script:
 
 ```bash
-mkdir -p .tls/postgres .tls/redis .tls/minio .tls/kafka
+# Local development (localhost SANs)
+./scripts/generate-certs.sh
 
-# Generate CA
-openssl genrsa -out .tls/ca.key 4096
-openssl req -x509 -new -nodes -key .tls/ca.key -sha256 -days 365 \
-  -out .tls/ca.crt -subj "/CN=UDPS CA"
+# With custom domains
+./scripts/generate-certs.sh --domain udps.company.com --domain grpc.udps.company.com
 
-# Generate server cert
-openssl genrsa -out .tls/tls.key 2048
-openssl req -new -key .tls/tls.key -out .tls/tls.csr -subj "/CN=udps"
-openssl x509 -req -in .tls/tls.csr -CA .tls/ca.crt -CAkey .tls/ca.key \
-  -CAcreateserial -out .tls/tls.crt -days 365 -sha256
+# Custom output directory
+./scripts/generate-certs.sh --output /path/to/certs
 ```
 
-Repeat for each service. In production, use a proper PKI or cert-manager.
+This generates CA (4096-bit), server (2048-bit), and client (2048-bit) certificates with SAN support. Generated files are placed in `deploy/docker/certs/` by default.
+
+To enable TLS on all services, use the secrets overlay:
+
+```bash
+docker compose -f docker-compose.prod.yml -f deploy/docker/docker-compose.secrets.yml up -d
+```
+
+The secrets overlay mounts certificates into PostgreSQL, Redis, Kafka, and MinIO with proper TLS configuration.
+
+In production, use a proper PKI or cert-manager instead of self-signed certificates.
 
 ### 2.4 Start the stack
 
@@ -204,7 +185,53 @@ Repeat for each service. In production, use a proper PKI or cert-manager.
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-### 2.5 Production resource limits
+### 2.5 One-command deployment (recommended)
+
+The deploy scripts in `deploy/docker/` provide USP-style one-command deployment:
+
+```bash
+cd deploy/docker
+
+# Full deployment: build, setup, start, validate
+./deploy.sh
+
+# Quick start (skip build if images exist)
+./deploy.sh --quick
+
+# Check deployment status
+./deploy.sh --status
+
+# View live logs
+./deploy.sh --logs
+
+# Run validation tests
+./deploy.sh --test
+```
+
+Additional scripts:
+
+| Script | Purpose |
+|--------|---------|
+| `setup.sh` | Interactive setup: generates `.env`, TLS certs, validates configuration |
+| `teardown.sh` | Stop services: `--full` removes volumes, `--purge` removes everything |
+| `validate-config.sh` | Validates environment variables, secret strength, and certificates |
+
+A `Makefile` provides convenient targets:
+
+```bash
+make deploy      # Full deployment
+make quick       # Quick start
+make setup       # Interactive setup
+make build       # Build images
+make start       # Start services
+make stop        # Stop services
+make logs        # View logs
+make status      # Check status
+make health      # Health checks
+make clean       # Full cleanup
+```
+
+### 2.6 Production resource limits
 
 The `docker-compose.prod.yml` defines these resource constraints:
 
@@ -218,7 +245,7 @@ The `docker-compose.prod.yml` defines these resource constraints:
 | kafka | 2.0 | 2 GB | 0.5 | 1 GB |
 | jaeger | 1.0 | 1 GB | 0.1 | 256 MB |
 
-### 2.6 Security features in production compose
+### 2.7 Security features in production compose
 
 - `read_only: true` -- Container filesystem is read-only; only `/tmp` and `/var/log/udps` are writable via tmpfs
 - `no-new-privileges: true` -- Prevents privilege escalation
@@ -230,106 +257,159 @@ The `docker-compose.prod.yml` defines these resource constraints:
 
 ## 3. Kubernetes Deployment
 
-Kubernetes manifests are in the `k8s/` directory.
+### 3.1 Kustomize (recommended)
 
-### 3.1 Manifest inventory
+UDPS uses Kustomize with base and environment overlays in `deploy/kubernetes/`:
 
-| File | Kind | Purpose |
-|------|------|---------|
-| `namespace.yml` | Namespace | `udps` namespace |
-| `configmap.yml` | ConfigMap | Non-sensitive configuration |
-| `secret.yml` | Secret | Credentials template (populate before applying) |
-| `deployment.yml` | Deployment + ServiceAccount | Application pods |
-| `service.yml` | Service (x2) | ClusterIP services for gRPC/HTTPS and health |
-| `hpa.yml` | HorizontalPodAutoscaler | Auto-scaling (2-10 replicas) |
-| `pdb.yml` | PodDisruptionBudget | Minimum 1 pod available during disruptions |
-| `ingress.yml` | Ingress (x2) | HTTPS and gRPC ingress via nginx |
-
-### 3.2 Apply manifests
-
-```bash
-# Create namespace
-kubectl apply -f k8s/namespace.yml
-
-# Create TLS secret (from cert-manager or manual)
-kubectl create secret tls udps-tls \
-  --cert=tls.crt --key=tls.key -n udps
-
-# Edit secret.yml and replace all REPLACE_WITH_ACTUAL_VALUE entries
-kubectl apply -f k8s/secret.yml
-
-# Apply remaining resources
-kubectl apply -f k8s/configmap.yml
-kubectl apply -f k8s/deployment.yml
-kubectl apply -f k8s/service.yml
-kubectl apply -f k8s/hpa.yml
-kubectl apply -f k8s/pdb.yml
-kubectl apply -f k8s/ingress.yml
+```
+deploy/kubernetes/
+├── base/                    # Base manifests (16 resources)
+│   ├── kustomization.yaml
+│   ├── namespace.yaml
+│   ├── serviceaccount.yaml
+│   ├── role.yaml
+│   ├── rolebinding.yaml
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── ingress.yaml
+│   ├── hpa.yaml
+│   ├── pdb.yaml
+│   ├── networkpolicy.yaml
+│   ├── resourcequota.yaml
+│   ├── podsecuritystandard.yaml
+│   └── servicemonitor.yaml
+└── overlays/
+    ├── development/         # 1 replica, DEBUG logging, dev hostnames
+    ├── staging/             # 2 replicas, INFO logging, staging hostnames
+    └── production/          # 3 replicas, WARN logging, prod hostnames, topology spread
 ```
 
-### 3.3 Deployment configuration
+Deploy with Kustomize:
 
-The Deployment is configured with:
+```bash
+# Development
+kubectl apply -k deploy/kubernetes/overlays/development
 
-- **Replicas:** 2 (minimum; HPA scales to 10)
-- **Strategy:** RollingUpdate with `maxSurge: 1`, `maxUnavailable: 0`
-- **Pod anti-affinity:** Prefers scheduling on different nodes
-- **Init container:** Waits for PostgreSQL to be reachable before starting
-- **Security context:**
-  - `runAsNonRoot: true`
-  - `runAsUser: 1000`
-  - `readOnlyRootFilesystem: true`
-  - All capabilities dropped
-  - `seccompProfile: RuntimeDefault`
-- **Volumes:**
-  - TLS certificates from `udps-tls` secret
-  - EmptyDir for `/tmp` (256 Mi) and `/var/log/udps` (512 Mi)
+# Staging
+kubectl apply -k deploy/kubernetes/overlays/staging
 
-### 3.4 Health probes
+# Production
+kubectl apply -k deploy/kubernetes/overlays/production
+```
 
-| Probe | Endpoint | Initial delay | Period | Failure threshold |
-|-------|----------|--------------|--------|-------------------|
-| Startup | `GET /health/live` (port 8081) | 15s | 5s | 30 (= 2.5 min total) |
-| Liveness | `GET /health/live` (port 8081) | 0s | 15s | 3 |
-| Readiness | `GET /health/ready` (port 8081) | 0s | 10s | 3 |
+#### Environment overlay differences
 
-### 3.5 Services
+| Parameter | Development | Staging | Production |
+|-----------|-------------|---------|------------|
+| Namespace | `seri-sa-platform-dev` | `seri-sa-platform-staging` | `seri-sa-platform` |
+| Replicas | 1 | 2 | 3 |
+| JVM heap | 256m-1g | 512m-2g | 1g-3g |
+| CPU request/limit | 250m/2000m | 500m/3000m | 1000m/4000m |
+| Memory request/limit | 512Mi/2Gi | 1Gi/4Gi | 2Gi/6Gi |
+| HPA max | 2 | 5 | 20 |
+| Log level | DEBUG | INFO | WARN |
+| Rate limiting | none | none | 500 rps (HTTP), 1000 rps (gRPC) |
+| Topology spread | no | no | zone-aware |
 
-Two ClusterIP services are created:
+### 3.2 Helm chart
 
-| Service | Ports | Purpose |
-|---------|-------|---------|
-| `udps` | 50060 (gRPC), 8443 (HTTPS), 9090 (metrics) | Primary service |
-| `udps-health` | 8081 | Health check service (for internal probes) |
+A Helm chart is available in `deploy/helm/udps/`:
 
-### 3.6 Ingress
+```bash
+# Install with defaults
+helm install udps deploy/helm/udps/
 
-Two Ingress resources are configured for nginx ingress controller:
+# Install with custom values
+helm install udps deploy/helm/udps/ \
+  --namespace seri-sa-platform \
+  --set replicaCount=3 \
+  --set image.tag=v0.1.0 \
+  --set ingress.enabled=true
 
-| Ingress | Host | Backend | Protocol |
-|---------|------|---------|----------|
-| `udps` | `udps.seri-sa.io` | `udps:8443` | HTTPS |
-| `udps-grpc` | `grpc.udps.seri-sa.io` | `udps:50060` | GRPCS |
+# Upgrade
+helm upgrade udps deploy/helm/udps/ --set image.tag=v0.2.0
+```
 
-Security headers are set via nginx annotations: HSTS, X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy.
+### 3.3 Base resources
 
-### 3.7 Auto-scaling
+The Kustomize base includes these Kubernetes resources:
 
-The HPA is configured as:
+| Resource | Purpose |
+|----------|---------|
+| Namespace | `seri-sa-platform` |
+| ServiceAccount | Pod identity with `automountServiceAccountToken: false` |
+| Role/RoleBinding | Least-privilege RBAC |
+| ConfigMap | Non-sensitive configuration (ports, JVM settings, feature flags) |
+| Deployment | 2 replicas, rolling update, init container for PostgreSQL readiness |
+| Service | ClusterIP: gRPC (50060), HTTPS (8443), health (8081), metrics (9090) |
+| Ingress | HTTPS and gRPC ingress with TLS, security headers |
+| HPA | CPU (70%) and memory (80%) autoscaling, 2-10 replicas |
+| PDB | MinAvailable: 1 |
+| NetworkPolicy | Restricts ingress/egress to required ports and dependencies |
+| ResourceQuota | Limits total namespace CPU (20 cores) and memory (40Gi) |
+| PodSecurityStandard | Restricted profile enforcement |
+| ServiceMonitor | Prometheus Operator metrics scraping (requires Prometheus Operator) |
 
-| Metric | Target | Min replicas | Max replicas |
-|--------|--------|-------------|-------------|
-| CPU utilization | 70% | 2 | 10 |
-| Memory utilization | 80% | 2 | 10 |
+### 3.4 Security features
 
-Scale-up: 2 pods per 60 seconds, 60-second stabilization window.
-Scale-down: 1 pod per 120 seconds, 300-second stabilization window.
+- **Pod security:** `runAsNonRoot`, `readOnlyRootFilesystem`, all capabilities dropped, `seccompProfile: RuntimeDefault`
+- **Network policy:** Only allows traffic from ingress controller and between required services (PostgreSQL, Redis, Kafka, MinIO, UCCP, OTEL)
+- **RBAC:** ServiceAccount with minimal permissions
+- **Resource quotas:** Prevents namespace resource exhaustion
+- **Pod security standards:** Restricted profile enforcement
 
-### 3.8 Pod disruption budget
+## 4. CI/CD Pipelines
 
-Minimum 1 pod must remain available during voluntary disruptions (node drain, rolling upgrades).
+GitHub Actions workflows in `.github/workflows/` provide automated deployment pipelines following USP patterns:
 
-## 4. Health Checks and Monitoring
+### 4.1 PR validation (`pr-validation.yml`)
+
+Triggered on pull requests to `main`, `development`, or `staging`:
+
+- Scala build and test with scoverage (60% coverage warning)
+- `scalafmt` format check
+- Dependency vulnerability scan (`sbt dependencyCheck`)
+- Dependency license review (blocks GPL-3.0, AGPL-3.0)
+- Dockerfile linting (hadolint)
+
+### 4.2 Development pipeline (`development.yml`)
+
+Triggered on push to `development`:
+
+- Build and test with PostgreSQL/Redis services
+- Security scan
+- Docker image build, push, and Cosign signing (`dev-<sha>` tags)
+- Kustomize deployment to development namespace
+- Smoke tests
+- Slack notification
+
+### 4.3 Staging pipeline (`staging.yml`)
+
+Triggered on push to `staging`:
+
+- Build and test with **70% coverage hard fail**
+- Trivy filesystem and container vulnerability scans
+- Docker image build with `staging-<version>` tags
+- Kustomize deployment to staging namespace
+- Smoke tests, E2E tests, k6 performance baseline
+- 14-day artifact retention
+
+### 4.4 Production pipeline (`production.yml`)
+
+Triggered on version tags (`v*.*.*`):
+
+- Version validation (semver format)
+- Build and test with **80% coverage hard fail**
+- Trivy scans with **exit-code: 1** (blocks on CRITICAL/HIGH)
+- Docker image with semantic version tags (`X.Y.Z`, `X.Y`, `X`, `latest`, `stable`)
+- **Blue-green deployment** with automatic rollback
+- Health check validation before traffic switch
+- Automatic rollback on smoke test failure
+- GitHub Release with auto-generated changelog
+- 90-day artifact retention
+
+## 5. Health Checks and Monitoring
 
 ### Health endpoints (port 8081)
 
@@ -370,7 +450,7 @@ OpenTelemetry traces are exported to Jaeger via OTLP gRPC (port 4317). Configure
 
 Jaeger UI is available at port 16686.
 
-## 5. Scaling Guidelines
+## 6. Scaling Guidelines
 
 ### Vertical scaling
 
@@ -398,7 +478,7 @@ Jaeger UI is available at port 16686.
 | Kafka | Ingestion throughput exceeds single broker capacity; add brokers and partitions |
 | MinIO | Archive tier storage exceeds single node capacity; switch to distributed mode |
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 ### Application does not start
 

@@ -1,0 +1,437 @@
+# =============================================================================
+# Unified Data Platform Service (UDPS) - Helm Values
+# =============================================================================
+# Default values for UDPS deployment. This is a YAML-formatted file.
+# Production-grade defaults are configured here.
+# Override via environment-specific values files (values-dev.yaml, etc.)
+# =============================================================================
+
+# =============================================================================
+# Image Configuration
+# =============================================================================
+image:
+  repository: ghcr.io/gbmm/udps
+  pullPolicy: IfNotPresent
+  tag: "0.1.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# =============================================================================
+# Deployment Configuration
+# =============================================================================
+replicaCount: 3
+
+# =============================================================================
+# Service Account
+# =============================================================================
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "udps"
+
+# =============================================================================
+# Pod Security Context
+# =============================================================================
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  fsGroup: 1001
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# =============================================================================
+# Service Configuration
+# =============================================================================
+service:
+  type: ClusterIP
+  ports:
+    grpc:
+      port: 50060
+      targetPort: 50060
+      protocol: TCP
+    https:
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+    health:
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+  annotations: {}
+
+# Headless gRPC service for client-side load balancing
+grpcService:
+  enabled: true
+  name: udps-grpc
+  clusterIP: None
+
+# =============================================================================
+# Ingress Configuration
+# =============================================================================
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/limit-rps: "500"
+    nginx.ingress.kubernetes.io/limit-connections: "200"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+  hosts:
+    - host: udps.seri-sa.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: udps-ingress-tls
+      hosts:
+        - udps.seri-sa.com
+
+# gRPC Ingress (separate for protocol handling)
+grpcIngress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+  hosts:
+    - host: udps-grpc.seri-sa.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: udps-grpc-ingress-tls
+      hosts:
+        - udps-grpc.seri-sa.com
+
+# =============================================================================
+# Resource Limits
+# =============================================================================
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+  limits:
+    memory: "4Gi"
+    cpu: "2000m"
+
+# =============================================================================
+# Autoscaling Configuration
+# =============================================================================
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max
+
+# =============================================================================
+# Pod Disruption Budget
+# =============================================================================
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# =============================================================================
+# Network Policy
+# =============================================================================
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8443
+        - protocol: TCP
+          port: 50060
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 8081
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: uccp
+      ports:
+        - protocol: TCP
+          port: 50050
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+
+# =============================================================================
+# Pod Affinity and Topology Spread
+# =============================================================================
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: udps
+          topologyKey: kubernetes.io/hostname
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: udps
+
+# =============================================================================
+# Probes Configuration
+# =============================================================================
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: health
+    scheme: HTTP
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: health
+    scheme: HTTP
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# =============================================================================
+# TLS Certificates
+# =============================================================================
+tls:
+  secretName: udps-tls
+  certPath: /app/certs/tls.crt
+  keyPath: /app/certs/tls.key
+  caPath: /app/certs/ca.crt
+
+# =============================================================================
+# JVM Configuration
+# =============================================================================
+jvm:
+  heapMin: "512m"
+  heapMax: "2g"
+  opts: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -Djava.security.egd=file:/dev/./urandom"
+
+# =============================================================================
+# Prometheus Monitoring
+# =============================================================================
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+  rules:
+    enabled: true
+
+# =============================================================================
+# Init Containers
+# =============================================================================
+initContainers:
+  waitForPostgres:
+    enabled: true
+    image: busybox:1.36
+    pullPolicy: IfNotPresent
+
+# =============================================================================
+# Application Configuration (ConfigMap Values)
+# =============================================================================
+config:
+  # Infrastructure Hostnames
+  database:
+    host: postgres.seri-sa-platform.svc.cluster.local
+    port: "5432"
+    database: unified_data_platform_db
+    ssl: "true"
+
+  redis:
+    host: redis.seri-sa-platform.svc.cluster.local
+    port: "6379"
+    ssl: "true"
+    database: "0"
+
+  kafka:
+    bootstrapServers: kafka.seri-sa-platform.svc.cluster.local:9092
+    schemaRegistryUrl: http://schema-registry.seri-sa-platform.svc.cluster.local:8081
+    securityProtocol: SASL_SSL
+    saslMechanism: SCRAM-SHA-512
+    consumerGroupId: udps-consumer-group
+
+  minio:
+    endpoint: minio.seri-sa-platform.svc.cluster.local
+    port: "9000"
+    useSsl: "true"
+    defaultBucket: udps-data
+
+  uccp:
+    host: uccp.seri-sa-platform.svc.cluster.local
+    port: "50050"
+    useTls: "true"
+
+  # gRPC Configuration
+  grpc:
+    port: "50060"
+    enableReflection: "false"
+    requireTls: "true"
+    enableDetailedErrors: "false"
+
+  # Observability
+  observability:
+    serviceName: UnifiedDataPlatformService
+    serviceVersion: "0.1.0"
+    otlp:
+      enabled: "false"
+      endpoint: ""
+    prometheus:
+      port: "9090"
+      path: /metrics
+
+# =============================================================================
+# Secrets (Sensitive Configuration) - ALL FIELDS BELOW ARE REQUIRED
+# =============================================================================
+# These values MUST be provided at deploy time via --set or a values override file.
+# Deployment will fail with a clear error if any required secret is missing.
+# DO NOT commit sensitive values to version control.
+#
+# Example:
+#   helm install udps ./udps \
+#     --set secrets.database.username=udps_admin \
+#     --set secrets.database.password=<generated> \
+#     --set secrets.redis.password=<generated> \
+#     --set secrets.kafka.username=udps_svc \
+#     --set secrets.kafka.password=<generated> \
+#     --set secrets.minio.accessKey=<generated> \
+#     --set secrets.minio.secretKey=<generated>
+#
+secrets:
+  # Database credentials (REQUIRED)
+  database:
+    username:    # REQUIRED - set via --set or values override
+    password:    # REQUIRED - set via --set or values override
+
+  # Redis credentials (REQUIRED)
+  redis:
+    password:    # REQUIRED - set via --set or values override
+
+  # Kafka credentials (REQUIRED)
+  kafka:
+    username:    # REQUIRED - set via --set or values override
+    password:    # REQUIRED - set via --set or values override
+
+  # MinIO credentials (REQUIRED)
+  minio:
+    accessKey:    # REQUIRED - set via --set or values override
+    secretKey:    # REQUIRED - set via --set or values override
+
+# =============================================================================
+# Node Selector
+# =============================================================================
+nodeSelector: {}
+
+# =============================================================================
+# Tolerations
+# =============================================================================
+tolerations: []
+
+# =============================================================================
+# Namespace
+# =============================================================================
+namespaceOverride: seri-sa-platform
+
+# =============================================================================
+# Namespace Creation
+# =============================================================================
+namespace:
+  create: false

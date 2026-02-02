@@ -1,0 +1,22 @@
+# =============================================================================
+# UDPS RoleBinding - Binds Role to ServiceAccount
+# =============================================================================
+# Grants the udps ServiceAccount the permissions defined in udps-role.
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: udps-rolebinding
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: seri-sa-platform
+subjects:
+  - kind: ServiceAccount
+    name: udps
+    namespace: seri-sa-platform
+roleRef:
+  kind: Role
+  name: udps-role
+  apiGroup: rbac.authorization.k8s.io

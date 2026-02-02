@@ -1,0 +1,18 @@
+apiVersion: v2
+name: udps
+description: Unified Data Platform Service (UDPS) - Data management backbone for the SeRi ecosystem
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - data-platform
+  - data-processing
+  - data-ingestion
+  - etl
+  - streaming
+home: https://github.com/seri-sa/udps
+sources:
+  - https://github.com/seri-sa/udps
+maintainers:
+  - name: SeRi Data Team
+    email: data@seri-sa.com

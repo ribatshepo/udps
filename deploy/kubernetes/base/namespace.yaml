@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/part-of: seri-sa-platform
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    description: "Unified Data Platform Service - production namespace"

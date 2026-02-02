@@ -1,0 +1,112 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: seri-sa-platform
+
+resources:
+  - ../../base
+
+namePrefix: prod-
+
+commonLabels:
+  environment: production
+
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: udps
+      spec:
+        replicas: 3
+        template:
+          spec:
+            containers:
+              - name: udps
+                env:
+                  - name: UDPS_ENVIRONMENT
+                    value: "production"
+                  - name: LOG_LEVEL
+                    value: "WARN"
+                  - name: JVM_HEAP_MIN
+                    value: "1g"
+                  - name: JVM_HEAP_MAX
+                    value: "3g"
+                resources:
+                  requests:
+                    memory: "2Gi"
+                    cpu: "1000m"
+                  limits:
+                    memory: "6Gi"
+                    cpu: "4000m"
+            topologySpreadConstraints:
+              - maxSkew: 1
+                topologyKey: topology.kubernetes.io/zone
+                whenUnsatisfiable: DoNotSchedule
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: udps
+
+  - patch: |-
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: udps
+        annotations:
+          nginx.ingress.kubernetes.io/limit-rps: "500"
+          nginx.ingress.kubernetes.io/limit-connections: "200"
+      spec:
+        tls:
+          - hosts:
+              - udps.seri-sa.com
+            secretName: udps-ingress-tls-prod
+        rules:
+          - host: udps.seri-sa.com
+
+  - patch: |-
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: udps-grpc
+        annotations:
+          nginx.ingress.kubernetes.io/limit-rps: "1000"
+          nginx.ingress.kubernetes.io/limit-connections: "500"
+      spec:
+        tls:
+          - hosts:
+              - grpc.udps.seri-sa.com
+            secretName: udps-ingress-tls-prod
+        rules:
+          - host: grpc.udps.seri-sa.com
+
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: udps
+      spec:
+        minReplicas: 3
+        maxReplicas: 20
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 60
+          - type: Resource
+            resource:
+              name: memory
+              target:
+                type: Utilization
+                averageUtilization: 70
+
+configMapGenerator:
+  - name: udps-config
+    behavior: merge
+    literals:
+      - OTEL_RESOURCE_ATTRIBUTES=service.namespace=seri-sa,deployment.environment=production
+
+images:
+  - name: ghcr.io/gbmm/udps
+    newTag: v0.1.0

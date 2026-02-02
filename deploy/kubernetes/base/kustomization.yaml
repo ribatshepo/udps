@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: seri-sa-platform
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - role.yaml
+  - rolebinding.yaml
+  - configmap.yaml
+  # Note: secret.yaml.template is a TEMPLATE - create actual secret manually
+  # or use External Secrets Operator to populate values
+  # - secret.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - networkpolicy.yaml
+  - pdb.yaml
+  - resourcequota.yaml
+  - podsecuritystandard.yaml
+  # ServiceMonitor and PrometheusRule require Prometheus Operator
+  # Uncomment if Prometheus Operator is installed:
+  # - servicemonitor.yaml
+
+commonLabels:
+  app.kubernetes.io/name: udps
+  app.kubernetes.io/part-of: seri-sa-platform
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+  - name: ghcr.io/gbmm/udps
+    newTag: latest

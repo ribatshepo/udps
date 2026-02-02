@@ -249,7 +249,9 @@ udps/
     ├── ARCHITECTURE.md            # Architecture guide
     ├── DEPLOYMENT.md              # Deployment guide
     ├── CONFIGURATION.md           # Configuration reference
-    └── API.md                     # API reference
+    ├── API.md                     # API reference
+    ├── INTEGRATION.md             # USP/UCCP/USTRP integration guide
+    └── TROUBLESHOOTING.md         # Troubleshooting guide
 ```
 
 ## Contributing

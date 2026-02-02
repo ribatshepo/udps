@@ -12,6 +12,8 @@ import io.gbmm.udps.api.rest._
 import io.gbmm.udps.catalog.repository.{CatalogDbConfig => RepoCatalogDbConfig, DoobieMetadataRepository, MetadataRepository}
 import io.gbmm.udps.core.config.{MinioConfig, StorageConfig}
 import io.gbmm.udps.integration.circuitbreaker.{CircuitBreakerConfig => IntegrationCBConfig, IntegrationCircuitBreaker}
+import io.gbmm.udps.integration.uccp.{MetricsPusher, MetricsSource, MetricSnapshot, ObservabilityConfig, TracingPropagator, ServiceDiscoveryClient, ServiceDiscoveryConfig, HealthReporter, HealthReportingConfig}
+import io.gbmm.udps.integration.uccp.{HealthCheck => UccpHealthCheck, HealthDetails, ComponentHealth => UccpComponentHealth, HealthReportStatus}
 import io.gbmm.udps.integration.usp.{AuthenticationClient, AuthenticationConfig}
 import io.gbmm.udps.query.execution.{DataReader, DistributedExecutor}
 import io.gbmm.udps.query.optimizer.{ColumnStats, CostBasedOptimizer, LogicalOptimizer, StatisticsProvider, TableStatistics}
@@ -66,6 +68,13 @@ object ApiMain extends IOApp.Simple with LazyLogging {
                          maxCacheSize = apiConfig.auth.maxCacheSize
                        )
       authClient    <- Resource.eval(AuthenticationClient.create(uspChannel, circuitBreaker, authConfig))
+
+      // -- UCCP Observability --
+      obsConfig      = ObservabilityConfig.validate(apiConfig.observability)
+      uccpMonChannel <- managedChannelResource(obsConfig.uccpMonitoringHost, obsConfig.uccpMonitoringPort, obsConfig.tracing)
+      uccpObsCB      <- IntegrationCircuitBreaker.create(cbConfig, "uccp-observability")
+      metricsSource   = noopMetricsSource
+      metricsPusher  <- MetricsPusher.resource(uccpMonChannel, uccpObsCB, obsConfig.metrics, metricsSource, "udps")
 
       // -- Query execution pipeline --
       dataReader     = emptyDataReader
@@ -185,6 +194,24 @@ object ApiMain extends IOApp.Simple with LazyLogging {
       maxResetTimeout = c.maxResetTimeout
     )
 
+  /** Create a managed gRPC channel resource for communicating with UCCP monitoring (with tracing interceptor). */
+  private def managedChannelResource(host: String, port: Int, tracingConfig: io.gbmm.udps.integration.uccp.TracingConfig): Resource[IO, ManagedChannel] =
+    Resource.make(
+      IO {
+        val interceptor = TracingPropagator.interceptor(tracingConfig)
+        ManagedChannelBuilder
+          .forAddress(host, port)
+          .usePlaintext()
+          .intercept(interceptor)
+          .build()
+      }
+    )(channel =>
+      IO {
+        channel.shutdown()
+        logger.info("UCCP Monitoring gRPC channel shut down")
+      }.void
+    )
+
   /** Create a managed gRPC channel resource for communicating with USP. */
   private def managedChannelResource(config: UspGrpcConfig): Resource[IO, ManagedChannel] =
     Resource.make(
@@ -257,6 +284,10 @@ object ApiMain extends IOApp.Simple with LazyLogging {
     * For an API gateway that proxies query execution to workers this is
     * sufficient. Direct data access should be wired via the storage layer.
     */
+  private val noopMetricsSource: MetricsSource = new MetricsSource {
+    def gatherMetrics: IO[List[MetricSnapshot]] = IO.pure(Nil)
+  }
+
   private val emptyDataReader: DataReader = new DataReader {
     def read(
       tableName: String,

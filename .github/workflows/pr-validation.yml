@@ -1,0 +1,177 @@
+name: PR Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+      - development
+      - staging
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'sbt'
+
+      - name: Compile
+        run: sbt compile
+
+      - name: Run tests with coverage
+        run: sbt coverage test coverageReport
+
+      - name: Check coverage threshold (60%)
+        run: |
+          COVERAGE=$(grep -oP 'Statement coverage[^0-9]*\K[0-9.]+' target/scala-2.13/scoverage-report/scoverage.xml 2>/dev/null || echo "")
+          if [[ -n "$COVERAGE" ]]; then
+            echo "Code coverage: ${COVERAGE}%"
+            if (( $(echo "$COVERAGE < 60" | bc -l) )); then
+              echo "::warning::Code coverage ${COVERAGE}% is below 60% PR threshold"
+            fi
+          else
+            echo "Coverage data not found, skipping threshold check"
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            **/target/test-reports/
+            **/target/scala-2.13/scoverage-report/
+          retention-days: 7
+
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'sbt'
+
+      - name: Check formatting
+        run: |
+          sbt scalafmtCheckAll || {
+            echo "::error::Code formatting issues detected. Run 'sbt scalafmtAll' locally to fix."
+            exit 1
+          }
+
+  security-analysis:
+    name: Security Analysis (Scala)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'sbt'
+
+      - name: Run dependency vulnerability check
+        run: sbt dependencyCheck || true
+
+      - name: Upload dependency check results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: target/scala-2.13/dependency-check-report.html
+          retention-days: 7
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-3.0, AGPL-3.0
+
+  validate-dockerfile:
+    name: Validate Dockerfile
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning
+
+  pr-summary:
+    name: PR Validation Summary
+    runs-on: ubuntu-latest
+    needs: [build, format-check, security-analysis, dependency-review, validate-dockerfile]
+    if: always()
+
+    steps:
+      - name: Check job statuses
+        run: |
+          echo "Build: ${{ needs.build.result }}"
+          echo "Format Check: ${{ needs.format-check.result }}"
+          echo "Security Analysis: ${{ needs.security-analysis.result }}"
+          echo "Dependency Review: ${{ needs.dependency-review.result }}"
+          echo "Dockerfile Validation: ${{ needs.validate-dockerfile.result }}"
+
+          if [[ "${{ needs.build.result }}" != "success" ]] || \
+             [[ "${{ needs.format-check.result }}" != "success" ]] || \
+             [[ "${{ needs.security-analysis.result }}" != "success" ]] || \
+             [[ "${{ needs.dependency-review.result }}" != "success" && "${{ needs.dependency-review.result }}" != "skipped" ]] || \
+             [[ "${{ needs.validate-dockerfile.result }}" != "success" ]]; then
+            echo "::error::One or more validation checks failed"
+            exit 1
+          fi
+
+          echo "All validation checks passed"

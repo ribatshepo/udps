@@ -1,0 +1,90 @@
+# =============================================================================
+# UDPS ResourceQuota - Namespace Resource Limits
+# =============================================================================
+# Enforces resource quotas on the seri-sa-platform namespace to prevent
+# resource exhaustion and ensure fair resource allocation for UDPS workloads.
+#
+# IMPORTANT:
+#   - All pods in the namespace MUST specify resource requests and limits
+#   - Pods without resource specs will fail to schedule
+#
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: udps-resource-quota
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/part-of: seri-sa-platform
+spec:
+  hard:
+    # Compute resources
+    requests.cpu: "12"           # Total CPU requests across all pods
+    requests.memory: "24Gi"      # Total memory requests across all pods
+    limits.cpu: "24"             # Total CPU limits across all pods
+    limits.memory: "48Gi"        # Total memory limits across all pods
+
+    # Storage resources
+    requests.storage: "200Gi"    # Total PVC storage requests
+    persistentvolumeclaims: "25" # Max number of PVCs
+
+    # Object counts
+    pods: "60"                   # Max number of pods
+    services: "25"               # Max number of services
+    secrets: "60"                # Max number of secrets
+    configmaps: "60"             # Max number of configmaps
+    replicationcontrollers: "10" # Max number of replication controllers
+
+---
+# =============================================================================
+# LimitRange - Default Resource Constraints
+# =============================================================================
+# Sets default resource requests/limits for containers that don't specify them.
+# Also enforces minimum and maximum constraints.
+# =============================================================================
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: udps-limit-range
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/part-of: seri-sa-platform
+spec:
+  limits:
+    # Container-level limits
+    - type: Container
+      # Default requests if not specified
+      defaultRequest:
+        cpu: "100m"
+        memory: "256Mi"
+      # Default limits if not specified
+      default:
+        cpu: "500m"
+        memory: "512Mi"
+      # Minimum allowed (prevents too-small containers)
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      # Maximum allowed (prevents resource hogging)
+      max:
+        cpu: "4"
+        memory: "8Gi"
+      # Max ratio of limit to request (prevents overcommit abuse)
+      maxLimitRequestRatio:
+        cpu: "10"
+        memory: "4"
+
+    # Pod-level limits
+    - type: Pod
+      max:
+        cpu: "8"
+        memory: "16Gi"
+
+    # PVC limits
+    - type: PersistentVolumeClaim
+      min:
+        storage: "1Gi"
+      max:
+        storage: "100Gi"

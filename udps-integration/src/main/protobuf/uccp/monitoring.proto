@@ -1,0 +1,67 @@
+syntax = "proto3";
+package uccp.monitoring;
+
+import "uccp/common.proto";
+import "google/protobuf/timestamp.proto";
+
+// Monitoring service for pushing and querying metrics from UDPS to UCCP MetricsCollector.
+service MonitoringService {
+  rpc PushMetrics(PushMetricsRequest) returns (uccp.common.Response);
+  rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
+  rpc ListMetrics(ListMetricsRequest) returns (ListMetricsResponse);
+}
+
+// Metric type classification for future extensibility.
+enum MetricType {
+  METRIC_TYPE_UNSPECIFIED = 0;
+  METRIC_TYPE_COUNTER = 1;
+  METRIC_TYPE_GAUGE = 2;
+  METRIC_TYPE_HISTOGRAM = 3;
+  METRIC_TYPE_SUMMARY = 4;
+}
+
+// A single metric sample with name, value, labels, and timestamp.
+message MetricSample {
+  string metric_name = 1;
+  double value = 2;
+  map<string, string> labels = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+// A stored sample returned from queries, containing only value and timestamp.
+message StoredSample {
+  double value = 1;
+  google.protobuf.Timestamp timestamp = 2;
+}
+
+// Request to push one or more metric samples.
+message PushMetricsRequest {
+  string source_id = 1;
+  string metric_namespace = 2;
+  repeated MetricSample samples = 3;
+}
+
+// Request to query metric samples within a time range with optional label filtering.
+message QueryMetricsRequest {
+  string metric_name = 1;
+  map<string, string> label_filter = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// Response containing queried metric samples.
+message QueryMetricsResponse {
+  uccp.common.Response response = 1;
+  repeated StoredSample samples = 2;
+}
+
+// Request to list metric names matching a prefix.
+message ListMetricsRequest {
+  string prefix = 1;
+}
+
+// Response containing matching metric names.
+message ListMetricsResponse {
+  uccp.common.Response response = 1;
+  repeated string metric_names = 2;
+}

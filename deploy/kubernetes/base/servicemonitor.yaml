@@ -1,0 +1,154 @@
+# =============================================================================
+# UDPS ServiceMonitor - Prometheus Operator Integration
+# =============================================================================
+# Configures Prometheus Operator to automatically scrape UDPS metrics.
+#
+# PREREQUISITES:
+#   - Prometheus Operator installed in cluster
+#   - ServiceMonitor CRD available
+#
+# INSTALLATION CHECK:
+#   kubectl get crd servicemonitors.monitoring.coreos.com
+#
+# If using kube-prometheus-stack:
+#   helm install prometheus prometheus-community/kube-prometheus-stack
+#
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: udps-servicemonitor
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: seri-sa-platform
+    # Label for Prometheus Operator to discover this ServiceMonitor
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: udps
+      app.kubernetes.io/component: server
+  namespaceSelector:
+    matchNames:
+      - seri-sa-platform
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "udps_.*"
+          action: keep
+        - sourceLabels: [__name__]
+          regex: "jvm_.*"
+          action: keep
+        - sourceLabels: [__name__]
+          regex: "process_.*"
+          action: keep
+---
+# =============================================================================
+# PrometheusRule - Alerting Rules for UDPS
+# =============================================================================
+# Defines alerting rules for common UDPS failure scenarios.
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: udps-alerts
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: seri-sa-platform
+    release: prometheus
+spec:
+  groups:
+    - name: udps.availability
+      rules:
+        # Alert if UDPS is down for more than 5 minutes
+        - alert: UDPSDown
+          expr: up{job="udps"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            service: udps
+          annotations:
+            summary: "UDPS is down"
+            description: "UDPS has been unreachable for more than 5 minutes."
+            runbook_url: "https://docs.seri-sa.com/runbooks/udps-down"
+
+        # Alert if health check is failing
+        - alert: UDPSHealthCheckFailing
+          expr: probe_success{job="blackbox", target=~".*udps.*health.*"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            service: udps
+          annotations:
+            summary: "UDPS health check failing"
+            description: "UDPS health endpoint has been failing for more than 5 minutes."
+
+    - name: udps.performance
+      rules:
+        # Alert if request latency is high
+        - alert: UDPSHighLatency
+          expr: histogram_quantile(0.95, sum(rate(grpc_server_handling_seconds_bucket{grpc_service=~"udps.*"}[5m])) by (le)) > 2
+          for: 10m
+          labels:
+            severity: warning
+            service: udps
+          annotations:
+            summary: "UDPS high request latency"
+            description: "95th percentile request latency is above 2 seconds for more than 10 minutes."
+
+        # Alert if error rate is high
+        - alert: UDPSHighErrorRate
+          expr: sum(rate(grpc_server_handled_total{grpc_service=~"udps.*", grpc_code!="OK"}[5m])) / sum(rate(grpc_server_handled_total{grpc_service=~"udps.*"}[5m])) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            service: udps
+          annotations:
+            summary: "UDPS high error rate"
+            description: "Error rate is above 5% for more than 5 minutes."
+
+    - name: udps.resources
+      rules:
+        # Alert if memory usage is high
+        - alert: UDPSHighMemoryUsage
+          expr: container_memory_working_set_bytes{container="udps"} / container_spec_memory_limit_bytes{container="udps"} > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            service: udps
+          annotations:
+            summary: "UDPS high memory usage"
+            description: "UDPS memory usage is above 85% of limit for more than 10 minutes."
+
+        # Alert if CPU usage is high
+        - alert: UDPSHighCPUUsage
+          expr: sum(rate(container_cpu_usage_seconds_total{container="udps"}[5m])) / sum(container_spec_cpu_quota{container="udps"}/container_spec_cpu_period{container="udps"}) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            service: udps
+          annotations:
+            summary: "UDPS high CPU usage"
+            description: "UDPS CPU usage is above 85% of limit for more than 10 minutes."
+
+        # Alert if JVM heap usage is high
+        - alert: UDPSHighJVMHeapUsage
+          expr: jvm_memory_used_bytes{area="heap", container="udps"} / jvm_memory_max_bytes{area="heap", container="udps"} > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            service: udps
+          annotations:
+            summary: "UDPS high JVM heap usage"
+            description: "UDPS JVM heap usage is above 85% of maximum for more than 10 minutes."

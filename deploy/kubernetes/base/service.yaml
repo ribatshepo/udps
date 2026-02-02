@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: udps
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: seri-sa-platform
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: server
+  ports:
+    - name: grpc
+      port: 50060
+      targetPort: grpc
+      protocol: TCP
+    - name: https
+      port: 8443
+      targetPort: https
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: udps-health
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: health
+    app.kubernetes.io/part-of: seri-sa-platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: server
+  ports:
+    - name: health
+      port: 8081
+      targetPort: health
+      protocol: TCP

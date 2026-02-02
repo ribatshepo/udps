@@ -77,7 +77,8 @@ final case class ApiConfig(
   circuitBreaker: CircuitBreakerConfig,
   storage: StoragePathConfig,
   minio: MinioApiConfig,
-  version: String
+  version: String,
+  observability: io.gbmm.udps.integration.uccp.ObservabilityConfig
 )
 
 object ApiConfig {
@@ -90,5 +91,8 @@ object ApiConfig {
   implicit val cbReader: ConfigReader[CircuitBreakerConfig] = deriveReader[CircuitBreakerConfig]
   implicit val storageReader: ConfigReader[StoragePathConfig] = deriveReader[StoragePathConfig]
   implicit val minioReader: ConfigReader[MinioApiConfig] = deriveReader[MinioApiConfig]
+  implicit val metricsPushReader: ConfigReader[io.gbmm.udps.integration.uccp.MetricsPushConfig] = io.gbmm.udps.integration.uccp.MetricsPushConfig.reader
+  implicit val tracingReader: ConfigReader[io.gbmm.udps.integration.uccp.TracingConfig] = io.gbmm.udps.integration.uccp.TracingConfig.reader
+  implicit val observabilityReader: ConfigReader[io.gbmm.udps.integration.uccp.ObservabilityConfig] = io.gbmm.udps.integration.uccp.ObservabilityConfig.reader
   implicit val reader: ConfigReader[ApiConfig] = deriveReader[ApiConfig]
 }

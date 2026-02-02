@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "udps.fullname" . }}
+  namespace: {{ include "udps.namespace" . }}
+  labels:
+    {{- include "udps.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: grpc
+      port: {{ .Values.service.ports.grpc.port }}
+      targetPort: {{ .Values.service.ports.grpc.targetPort }}
+      protocol: {{ .Values.service.ports.grpc.protocol }}
+    - name: https
+      port: {{ .Values.service.ports.https.port }}
+      targetPort: {{ .Values.service.ports.https.targetPort }}
+      protocol: {{ .Values.service.ports.https.protocol }}
+    - name: metrics
+      port: {{ .Values.service.ports.metrics.port }}
+      targetPort: {{ .Values.service.ports.metrics.targetPort }}
+      protocol: {{ .Values.service.ports.metrics.protocol }}
+    - name: health
+      port: {{ .Values.service.ports.health.port }}
+      targetPort: {{ .Values.service.ports.health.targetPort }}
+      protocol: {{ .Values.service.ports.health.protocol }}
+  selector:
+    {{- include "udps.selectorLabels" . | nindent 4 }}
+---
+{{- if .Values.grpcService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.grpcService.name | default (printf "%s-grpc" (include "udps.fullname" .)) }}
+  namespace: {{ include "udps.namespace" . }}
+  labels:
+    {{- include "udps.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: {{ .Values.grpcService.clusterIP }}
+  ports:
+    - name: grpc
+      port: {{ .Values.service.ports.grpc.port }}
+      targetPort: {{ .Values.service.ports.grpc.targetPort }}
+      protocol: {{ .Values.service.ports.grpc.protocol }}
+  selector:
+    {{- include "udps.selectorLabels" . | nindent 4 }}
+{{- end }}

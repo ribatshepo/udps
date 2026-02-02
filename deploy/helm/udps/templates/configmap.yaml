@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "udps.fullname" . }}-config
+  namespace: {{ include "udps.namespace" . }}
+  labels:
+    {{- include "udps.labels" . | nindent 4 }}
+data:
+  # Database Configuration
+  DATABASE_HOST: {{ .Values.config.database.host | quote }}
+  DATABASE_PORT: {{ .Values.config.database.port | quote }}
+  DATABASE_NAME: {{ .Values.config.database.database | quote }}
+  DATABASE_SSL: {{ .Values.config.database.ssl | quote }}
+
+  # Redis Configuration
+  REDIS_HOST: {{ .Values.config.redis.host | quote }}
+  REDIS_PORT: {{ .Values.config.redis.port | quote }}
+  REDIS_SSL: {{ .Values.config.redis.ssl | quote }}
+  REDIS_DATABASE: {{ .Values.config.redis.database | quote }}
+
+  # Kafka Configuration
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.kafka.bootstrapServers | quote }}
+  KAFKA_SCHEMA_REGISTRY_URL: {{ .Values.config.kafka.schemaRegistryUrl | quote }}
+  KAFKA_SECURITY_PROTOCOL: {{ .Values.config.kafka.securityProtocol | quote }}
+  KAFKA_SASL_MECHANISM: {{ .Values.config.kafka.saslMechanism | quote }}
+  KAFKA_CONSUMER_GROUP_ID: {{ .Values.config.kafka.consumerGroupId | quote }}
+
+  # MinIO Configuration
+  MINIO_ENDPOINT: {{ .Values.config.minio.endpoint | quote }}
+  MINIO_PORT: {{ .Values.config.minio.port | quote }}
+  MINIO_USE_SSL: {{ .Values.config.minio.useSsl | quote }}
+  MINIO_DEFAULT_BUCKET: {{ .Values.config.minio.defaultBucket | quote }}
+
+  # UCCP Configuration
+  UCCP_HOST: {{ .Values.config.uccp.host | quote }}
+  UCCP_PORT: {{ .Values.config.uccp.port | quote }}
+  UCCP_USE_TLS: {{ .Values.config.uccp.useTls | quote }}
+
+  # gRPC Configuration
+  GRPC_PORT: {{ .Values.config.grpc.port | quote }}
+  GRPC_ENABLE_REFLECTION: {{ .Values.config.grpc.enableReflection | quote }}
+  GRPC_REQUIRE_TLS: {{ .Values.config.grpc.requireTls | quote }}
+  GRPC_ENABLE_DETAILED_ERRORS: {{ .Values.config.grpc.enableDetailedErrors | quote }}
+
+  # TLS Configuration
+  TLS_CERT_PATH: {{ .Values.tls.certPath | quote }}
+  TLS_KEY_PATH: {{ .Values.tls.keyPath | quote }}
+  TLS_CA_PATH: {{ .Values.tls.caPath | quote }}
+
+  # Observability Configuration
+  OTEL_SERVICE_NAME: {{ .Values.config.observability.serviceName | quote }}
+  OTEL_SERVICE_VERSION: {{ .Values.config.observability.serviceVersion | quote }}
+  OTEL_EXPORTER_OTLP_ENABLED: {{ .Values.config.observability.otlp.enabled | quote }}
+  {{- if .Values.config.observability.otlp.endpoint }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.observability.otlp.endpoint | quote }}
+  {{- end }}
+  PROMETHEUS_PORT: {{ .Values.config.observability.prometheus.port | quote }}
+  PROMETHEUS_PATH: {{ .Values.config.observability.prometheus.path | quote }}

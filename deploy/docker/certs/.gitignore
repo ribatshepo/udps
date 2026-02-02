@@ -1,0 +1,7 @@
+# Ignore generated certificates
+*.key
+*.crt
+*.csr
+*.cnf
+*.pem
+!.gitkeep

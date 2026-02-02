@@ -1,0 +1,76 @@
+# =============================================================================
+# UDPS Pod Security Standards - Namespace-level Security Enforcement
+# =============================================================================
+# Enforces Pod Security Standards (PSS) on the seri-sa-platform namespace.
+#
+# Pod Security Standards have three levels:
+#   - privileged: Unrestricted policy (not recommended for production)
+#   - baseline: Minimally restrictive, prevents known privilege escalations
+#   - restricted: Heavily restricted, follows security best practices
+#
+# This configuration enforces 'restricted' mode for maximum security.
+#
+# IMPORTANT:
+#   - Pod Security Standards replaced PodSecurityPolicy (deprecated in K8s 1.21)
+#   - Requires Kubernetes 1.23+ for full support
+#   - All pods must comply or they will be rejected/warned
+#
+# =============================================================================
+
+# Namespace with Pod Security Standards labels
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: seri-sa-platform
+    app.kubernetes.io/managed-by: kustomize
+
+    # Pod Security Standards enforcement
+    # enforce: Reject pods that violate the policy
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+
+    # audit: Log violations but allow pods
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+
+    # warn: Display warnings for violations
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+
+---
+# =============================================================================
+# NetworkPolicy - Default Deny with Explicit Allow
+# =============================================================================
+# Default deny all ingress/egress, then allow specific traffic.
+# This is a defense-in-depth measure complementing the udps-network-policy.
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: seri-sa-platform
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/part-of: seri-sa-platform
+spec:
+  podSelector: {}  # Apply to all pods in namespace
+  policyTypes:
+    - Ingress
+    - Egress
+  # Empty ingress/egress means deny all
+  # Specific NetworkPolicies (like udps-network-policy) will allow required traffic
+  ingress: []
+  egress:
+    # Allow DNS (required for service discovery)
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

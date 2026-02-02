@@ -1,0 +1,50 @@
+===============================================================================
+  Unified Data Platform Service (UDPS) has been deployed.
+===============================================================================
+
+Namespace: {{ include "udps.namespace" . }}
+Release:   {{ .Release.Name }}
+
+-------------------------------------------------------------------------------
+  Service Endpoints
+-------------------------------------------------------------------------------
+
+1. gRPC endpoint:
+   {{- if .Values.grpcIngress.enabled }}
+   External: {{ range .Values.grpcIngress.hosts }}{{ .host }}{{ end }}:443
+   {{- end }}
+   Internal: {{ include "udps.fullname" . }}.{{ include "udps.namespace" . }}.svc.cluster.local:{{ .Values.service.ports.grpc.port }}
+
+2. HTTPS endpoint:
+   {{- if .Values.ingress.enabled }}
+   External: https://{{ range .Values.ingress.hosts }}{{ .host }}{{ end }}
+   {{- end }}
+   Internal: {{ include "udps.fullname" . }}.{{ include "udps.namespace" . }}.svc.cluster.local:{{ .Values.service.ports.https.port }}
+
+3. Metrics endpoint:
+   Internal: {{ include "udps.fullname" . }}.{{ include "udps.namespace" . }}.svc.cluster.local:{{ .Values.service.ports.metrics.port }}/metrics
+
+4. Health endpoint:
+   Liveness:  http://{{ include "udps.fullname" . }}.{{ include "udps.namespace" . }}.svc.cluster.local:{{ .Values.service.ports.health.port }}/health/live
+   Readiness: http://{{ include "udps.fullname" . }}.{{ include "udps.namespace" . }}.svc.cluster.local:{{ .Values.service.ports.health.port }}/health/ready
+
+-------------------------------------------------------------------------------
+  Verify Deployment
+-------------------------------------------------------------------------------
+
+  kubectl get pods -n {{ include "udps.namespace" . }} -l app.kubernetes.io/name={{ include "udps.name" . }}
+  kubectl get svc -n {{ include "udps.namespace" . }} -l app.kubernetes.io/name={{ include "udps.name" . }}
+  kubectl logs -n {{ include "udps.namespace" . }} -l app.kubernetes.io/name={{ include "udps.name" . }} --tail=50
+
+-------------------------------------------------------------------------------
+  Dependencies
+-------------------------------------------------------------------------------
+
+Ensure the following services are available before UDPS starts:
+  - PostgreSQL: {{ .Values.config.database.host }}:{{ .Values.config.database.port }}
+  - Redis:      {{ .Values.config.redis.host }}:{{ .Values.config.redis.port }}
+  - Kafka:      {{ .Values.config.kafka.bootstrapServers }}
+  - MinIO:      {{ .Values.config.minio.endpoint }}:{{ .Values.config.minio.port }}
+  - UCCP:       {{ .Values.config.uccp.host }}:{{ .Values.config.uccp.port }}
+
+===============================================================================
