@@ -30,6 +30,8 @@ object Dependencies {
     val calcite = "1.35.0"
     val akka = "2.8.5"
     val akkaHttp = "10.5.3"
+    val sangria = "4.1.0"
+    val sangriaCirce = "1.3.2"
   }
   
   // Core dependencies
@@ -118,6 +120,10 @@ object Dependencies {
   val akkaStream = "com.typesafe.akka" %% "akka-stream" % Versions.akka
   val akkaSerialization = "com.typesafe.akka" %% "akka-serialization-jackson" % Versions.akka
   
+  // GraphQL
+  val sangriaLib = "org.sangria-graphql" %% "sangria" % Versions.sangria
+  val sangriaCirceLib = "org.sangria-graphql" %% "sangria-circe" % Versions.sangriaCirce
+
   // Testing
   val scalatest = "org.scalatest" %% "scalatest" % Versions.scalatest % Test
   val testcontainers = "com.dimafeng" %% "testcontainers-scala-scalatest" % Versions.testcontainers % Test
@@ -197,6 +203,11 @@ object Dependencies {
     mongoDriverSync,
     elasticJavaClient,
     elasticRestClient
+  )
+
+  val graphqlDeps = Seq(
+    sangriaLib,
+    sangriaCirceLib
   )
 
   val testDeps = Seq(

@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package udps.api;
+
+import "udps/common.proto";
+
+option java_multiple_files = true;
+
+message ReadTableDataRequest {
+  string table_id = 1;
+  repeated string columns = 2;
+  int32 limit = 3;
+  int64 offset = 4;
+}
+
+message DataRow {
+  map<string, string> values = 1;
+}
+
+message ReadTableDataResponse {
+  repeated DataRow rows = 1;
+  int64 total_rows = 2;
+  PaginationResponse pagination = 3;
+}
+
+message StorageStats {
+  string table_id = 1;
+  int64 size_bytes = 2;
+  int64 row_count = 3;
+  string compression = 4;
+  string format = 5;
+  int32 file_count = 6;
+}
+
+message GetStorageStatsRequest {
+  string table_id = 1;
+}
+
+message GetTierStatusRequest {
+  string table_id = 1;
+}
+
+message TierStatus {
+  string table_id = 1;
+  string current_tier = 2;
+  string recommended_tier = 3;
+  Timestamp last_accessed = 4;
+  int64 access_frequency = 5;
+}
+
+message TriggerRebalanceRequest {
+  string table_id = 1;
+  string target_tier = 2;
+}
+
+message TriggerRebalanceResponse {
+  ApiResponse response = 1;
+  string job_id = 2;
+}
+
+service StorageService {
+  rpc ReadTableData(ReadTableDataRequest) returns (ReadTableDataResponse);
+  rpc GetStorageStats(GetStorageStatsRequest) returns (StorageStats);
+  rpc GetTierStatus(GetTierStatusRequest) returns (TierStatus);
+  rpc TriggerRebalance(TriggerRebalanceRequest) returns (TriggerRebalanceResponse);
+}

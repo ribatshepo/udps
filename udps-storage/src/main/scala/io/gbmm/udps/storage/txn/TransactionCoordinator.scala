@@ -243,9 +243,7 @@ final class TransactionCoordinator(
         val path = Paths.get(bw.dataPath)
         if (Files.exists(path)) {
           logger.info(
-            "Committing write: txn={}, table={}, partition={}, rows={}, bytes={}, path={}",
-            Array[AnyRef](entry.transactionId, bw.tableName, bw.partitionKey,
-              java.lang.Long.valueOf(bw.rowCount), java.lang.Long.valueOf(bw.sizeBytes), bw.dataPath): _*
+            s"Committing write: txn=${entry.transactionId}, table=${bw.tableName}, partition=${bw.partitionKey}, rows=${bw.rowCount}, bytes=${bw.sizeBytes}, path=${bw.dataPath}"
           )
         } else {
           logger.warn(

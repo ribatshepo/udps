@@ -19,9 +19,9 @@ final class KafkaScanner extends DataSourceScanner with LazyLogging {
   override val sourceType: String = "kafka"
 
   private val SampleTimeoutMs = 5000L
-  private val TopicListTimeoutSec = 30
-  private val AdminClientCloseTimeoutSec = 5
-  private val ConsumerCloseTimeoutSec = 5
+  private val TopicListTimeoutSec = 30L
+  private val AdminClientCloseTimeoutSec = 5L
+  private val ConsumerCloseTimeoutSec = 5L
 
   override def scan(config: ScanConfig): IO[DiscoveryResult] = {
     val topicFilter = config.options.getOrElse("topicFilter", ".*")
@@ -34,7 +34,7 @@ final class KafkaScanner extends DataSourceScanner with LazyLogging {
           val topicNames = adminClient
             .listTopics()
             .names()
-            .get(TopicListTimeoutSec.toLong, java.util.concurrent.TimeUnit.SECONDS)
+            .get(TopicListTimeoutSec, java.util.concurrent.TimeUnit.SECONDS)
             .asScala
             .filter(name => topicRegex.findFirstIn(name).isDefined)
             .filter(name => !excludeInternal || !name.startsWith("__"))
@@ -73,19 +73,6 @@ final class KafkaScanner extends DataSourceScanner with LazyLogging {
       props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "10000")
       AdminClient.create(props)
     })(client => IO.blocking(client.close(Duration.ofSeconds(AdminClientCloseTimeoutSec))).handleErrorWith(_ => IO.unit))
-
-  private def consumerResource(bootstrapServers: String, options: Map[String, String]): Resource[IO, KafkaConsumer[String, String]] =
-    Resource.make(IO.blocking {
-      val props = new Properties()
-      props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
-      props.put(ConsumerConfig.GROUP_ID_CONFIG, options.getOrElse("groupId", "udps-schema-discovery"))
-      props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, classOf[StringDeserializer].getName)
-      props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, classOf[StringDeserializer].getName)
-      props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
-      props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
-      props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "1")
-      new KafkaConsumer[String, String](props)
-    })(consumer => IO.blocking(consumer.close(Duration.ofSeconds(ConsumerCloseTimeoutSec))).handleErrorWith(_ => IO.unit))
 
   private def inferTopicSchema(
     bootstrapServers: String,

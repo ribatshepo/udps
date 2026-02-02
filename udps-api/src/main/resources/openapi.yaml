@@ -1,0 +1,1314 @@
+openapi: "3.0.3"
+info:
+  title: UDPS API
+  version: "0.1.0"
+  description: >
+    Unified Data Platform Service REST API. Provides catalog management
+    (databases, schemas, tables, columns), storage tier operations, SQL query
+    execution, and a GraphQL endpoint.
+  contact:
+    name: GBMM Engineering
+  license:
+    name: Proprietary
+
+servers:
+  - url: "{protocol}://{host}:{port}"
+    description: Configurable server
+    variables:
+      protocol:
+        default: http
+        enum: [http, https]
+      host:
+        default: localhost
+      port:
+        default: "8080"
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Databases
+    description: Catalog database CRUD operations
+  - name: Schemas
+    description: Catalog schema CRUD operations
+  - name: Tables
+    description: Catalog table CRUD operations
+  - name: Columns
+    description: Catalog column CRUD operations
+  - name: Storage
+    description: Storage statistics and tier management
+  - name: Query
+    description: SQL query execution and plan explanation
+  - name: GraphQL
+    description: GraphQL API endpoint
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  # ---------------------------------------------------------------------------
+  # Databases
+  # ---------------------------------------------------------------------------
+  /api/v1/databases:
+    get:
+      tags: [Databases]
+      summary: List all databases
+      operationId: listDatabases
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatabaseListResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Databases]
+      summary: Create a new database
+      operationId: createDatabase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDatabaseRequest"
+      responses:
+        "201":
+          description: Database created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatabaseResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/databases/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [Databases]
+      summary: Get a database by ID
+      operationId: getDatabase
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatabaseResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Databases]
+      summary: Update a database
+      operationId: updateDatabase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDatabaseRequest"
+      responses:
+        "200":
+          description: Database updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatabaseResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Databases]
+      summary: Delete a database
+      operationId: deleteDatabase
+      responses:
+        "204":
+          description: Database deleted
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+  /api/v1/databases/{databaseId}/schemas:
+    parameters:
+      - name: databaseId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Parent database identifier
+    get:
+      tags: [Schemas]
+      summary: List schemas in a database
+      operationId: listSchemas
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaListResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Schemas]
+      summary: Create a schema in a database
+      operationId: createSchema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSchemaRequest"
+      responses:
+        "201":
+          description: Schema created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/schemas/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [Schemas]
+      summary: Get a schema by ID
+      operationId: getSchema
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Schemas]
+      summary: Update a schema
+      operationId: updateSchema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSchemaRequest"
+      responses:
+        "200":
+          description: Schema updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Schemas]
+      summary: Delete a schema
+      operationId: deleteSchema
+      responses:
+        "204":
+          description: Schema deleted
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Tables
+  # ---------------------------------------------------------------------------
+  /api/v1/schemas/{schemaId}/tables:
+    parameters:
+      - name: schemaId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Parent schema identifier
+    get:
+      tags: [Tables]
+      summary: List tables in a schema
+      operationId: listTables
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableListResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Tables]
+      summary: Create a table in a schema
+      operationId: createTable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTableRequest"
+      responses:
+        "201":
+          description: Table created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/tables/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [Tables]
+      summary: Get a table by ID
+      operationId: getTable
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Tables]
+      summary: Update a table
+      operationId: updateTable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTableRequest"
+      responses:
+        "200":
+          description: Table updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Tables]
+      summary: Delete a table
+      operationId: deleteTable
+      responses:
+        "204":
+          description: Table deleted
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Columns
+  # ---------------------------------------------------------------------------
+  /api/v1/tables/{tableId}/columns:
+    parameters:
+      - name: tableId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Parent table identifier
+    get:
+      tags: [Columns]
+      summary: List columns in a table
+      operationId: listColumns
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColumnListResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Columns]
+      summary: Create a column in a table
+      operationId: createColumn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateColumnRequest"
+      responses:
+        "201":
+          description: Column created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColumnResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/columns/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [Columns]
+      summary: Get a column by ID
+      operationId: getColumn
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColumnResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Columns]
+      summary: Update a column
+      operationId: updateColumn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateColumnRequest"
+      responses:
+        "200":
+          description: Column updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColumnResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Columns]
+      summary: Delete a column
+      operationId: deleteColumn
+      responses:
+        "204":
+          description: Column deleted
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Storage
+  # ---------------------------------------------------------------------------
+  /api/v1/storage/tables/{id}/stats:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [Storage]
+      summary: Get storage statistics for a table
+      operationId: getStorageStats
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageStatsResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/storage/tables/{id}/tier:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    get:
+      tags: [Storage]
+      summary: Get tier status for a table
+      operationId: getTierStatus
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TierStatusResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/storage/tables/{id}/rebalance:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+    post:
+      tags: [Storage]
+      summary: Trigger a tier rebalance for a table
+      operationId: rebalanceTable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RebalanceRequest"
+      responses:
+        "200":
+          description: Rebalance completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RebalanceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Query
+  # ---------------------------------------------------------------------------
+  /api/v1/query/execute:
+    post:
+      tags: [Query]
+      summary: Execute a SQL query
+      operationId: executeQuery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryRequest"
+      responses:
+        "200":
+          description: Query executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResultResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/query/explain:
+    post:
+      tags: [Query]
+      summary: Explain a SQL query execution plan
+      operationId: explainQuery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryRequest"
+      responses:
+        "200":
+          description: Query plan generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExplainResultResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # GraphQL
+  # ---------------------------------------------------------------------------
+  /api/v1/graphql:
+    post:
+      tags: [GraphQL]
+      summary: Execute a GraphQL query
+      operationId: graphql
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GraphQLRequest"
+      responses:
+        "200":
+          description: GraphQL response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphQLResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Health
+  # ---------------------------------------------------------------------------
+  /health:
+    get:
+      tags: [Health]
+      summary: Full health check with component details
+      operationId: healthCheck
+      security: []
+      responses:
+        "200":
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: System is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /health/readiness:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      operationId: readinessCheck
+      security: []
+      responses:
+        "200":
+          description: System is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: System is not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /health/liveness:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      operationId: livenessCheck
+      security: []
+      responses:
+        "200":
+          description: System is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version]
+                properties:
+                  status:
+                    type: string
+                    example: UP
+                  version:
+                    type: string
+                    example: "0.1.0"
+
+  # ---------------------------------------------------------------------------
+  # Docs
+  # ---------------------------------------------------------------------------
+  /api/v1/docs/openapi.yaml:
+    get:
+      tags: [Docs]
+      summary: OpenAPI specification
+      operationId: getOpenApiSpec
+      security: []
+      responses:
+        "200":
+          description: OpenAPI YAML specification
+          content:
+            application/x-yaml:
+              schema:
+                type: string
+
+  /api/v1/docs/graphql.sdl:
+    get:
+      tags: [Docs]
+      summary: GraphQL schema in SDL format
+      operationId: getGraphqlSdl
+      security: []
+      responses:
+        "200":
+          description: GraphQL SDL schema
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  # ---------------------------------------------------------------------------
+  # Security schemes
+  # ---------------------------------------------------------------------------
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT-based authentication token
+
+  # ---------------------------------------------------------------------------
+  # Parameters
+  # ---------------------------------------------------------------------------
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Resource identifier
+
+  # ---------------------------------------------------------------------------
+  # Reusable responses
+  # ---------------------------------------------------------------------------
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+  schemas:
+    # --- Error ---
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error message
+          example: The requested resource was not found
+        details:
+          type: string
+          nullable: true
+          description: Additional error context
+
+    # --- Response envelope ---
+    ResponseMeta:
+      type: object
+      properties:
+        totalCount:
+          type: integer
+          format: int64
+          nullable: true
+          description: Total number of items matching the query
+        executionTimeMs:
+          type: integer
+          format: int64
+          nullable: true
+          description: Query execution time in milliseconds
+
+    # --- Database ---
+    Database:
+      type: object
+      required: [id, name, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateDatabaseRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+
+    UpdateDatabaseRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+
+    DatabaseResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Database"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    DatabaseListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Database"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    # --- Schema ---
+    CatalogSchema:
+      type: object
+      required: [id, databaseId, name, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        databaseId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateSchemaRequest:
+      type: object
+      required: [databaseId, name]
+      properties:
+        databaseId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+
+    UpdateSchemaRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+
+    SchemaResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/CatalogSchema"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    SchemaListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogSchema"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    # --- Table ---
+    Table:
+      type: object
+      required: [id, schemaId, name, rowCount, sizeBytes, tier, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        schemaId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        rowCount:
+          type: integer
+          format: int64
+        sizeBytes:
+          type: integer
+          format: int64
+        tier:
+          type: string
+          enum: [hot, warm, cold, archive]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateTableRequest:
+      type: object
+      required: [schemaId, name, tier]
+      properties:
+        schemaId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        tier:
+          type: string
+          enum: [hot, warm, cold, archive]
+
+    UpdateTableRequest:
+      type: object
+      required: [name, rowCount, sizeBytes, tier]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        rowCount:
+          type: integer
+          format: int64
+        sizeBytes:
+          type: integer
+          format: int64
+        tier:
+          type: string
+          enum: [hot, warm, cold, archive]
+
+    TableResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Table"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    TableListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Table"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    # --- Column ---
+    Column:
+      type: object
+      required:
+        - id
+        - tableId
+        - name
+        - dataType
+        - nullable
+        - indexed
+        - ftsEnabled
+        - piiClassified
+        - ordinalPosition
+      properties:
+        id:
+          type: string
+          format: uuid
+        tableId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        dataType:
+          type: string
+          minLength: 1
+        nullable:
+          type: boolean
+        indexed:
+          type: boolean
+        ftsEnabled:
+          type: boolean
+          description: Whether full-text search is enabled for this column
+        piiClassified:
+          type: boolean
+          description: Whether this column is classified as containing PII
+        ordinalPosition:
+          type: integer
+          format: int32
+
+    CreateColumnRequest:
+      type: object
+      required:
+        - tableId
+        - name
+        - dataType
+        - nullable
+        - indexed
+        - ftsEnabled
+        - piiClassified
+        - ordinalPosition
+      properties:
+        tableId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        dataType:
+          type: string
+          minLength: 1
+        nullable:
+          type: boolean
+        indexed:
+          type: boolean
+        ftsEnabled:
+          type: boolean
+        piiClassified:
+          type: boolean
+        ordinalPosition:
+          type: integer
+          format: int32
+
+    UpdateColumnRequest:
+      type: object
+      required:
+        - name
+        - dataType
+        - nullable
+        - indexed
+        - ftsEnabled
+        - piiClassified
+        - ordinalPosition
+      properties:
+        name:
+          type: string
+          minLength: 1
+        dataType:
+          type: string
+          minLength: 1
+        nullable:
+          type: boolean
+        indexed:
+          type: boolean
+        ftsEnabled:
+          type: boolean
+        piiClassified:
+          type: boolean
+        ordinalPosition:
+          type: integer
+          format: int32
+
+    ColumnResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Column"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    ColumnListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Column"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    # --- Storage ---
+    StorageStatsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [tableId, tableName, rowCount, sizeBytes, currentTier, createdAt, updatedAt]
+          properties:
+            tableId:
+              type: string
+              format: uuid
+            tableName:
+              type: string
+            rowCount:
+              type: integer
+              format: int64
+            sizeBytes:
+              type: integer
+              format: int64
+            currentTier:
+              type: string
+              enum: [hot, warm, cold, archive]
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    TierStatusResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [tableId, currentTier, recommendedTier, tierChangePending]
+          properties:
+            tableId:
+              type: string
+              format: uuid
+            currentTier:
+              type: string
+              enum: [hot, warm, cold, archive]
+            recommendedTier:
+              type: string
+              enum: [hot, warm, cold, archive]
+            tierChangePending:
+              type: boolean
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    RebalanceRequest:
+      type: object
+      required: [targetTier]
+      properties:
+        targetTier:
+          type: string
+          enum: [hot, warm, cold, archive]
+
+    RebalanceResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [tableId, previousTier, newTier, transitionedAt]
+          properties:
+            tableId:
+              type: string
+              format: uuid
+            previousTier:
+              type: string
+              enum: [hot, warm, cold, archive]
+            newTier:
+              type: string
+              enum: [hot, warm, cold, archive]
+            transitionedAt:
+              type: string
+              format: date-time
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    # --- Query ---
+    QueryRequest:
+      type: object
+      required: [sql]
+      properties:
+        sql:
+          type: string
+          minLength: 1
+          maxLength: 65536
+          description: SQL statement to execute
+        maxRows:
+          type: integer
+          format: int64
+          description: Maximum number of rows to return (default 10000)
+
+    ColumnDescriptor:
+      type: object
+      required: [name, typeName]
+      properties:
+        name:
+          type: string
+        typeName:
+          type: string
+
+    QueryResult:
+      type: object
+      required: [queryId, columns, rows, rowCount, executionTimeMs, stagesExecuted]
+      properties:
+        queryId:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ColumnDescriptor"
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        rowCount:
+          type: integer
+          format: int64
+        executionTimeMs:
+          type: integer
+          format: int64
+        stagesExecuted:
+          type: integer
+          format: int32
+
+    QueryResultResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/QueryResult"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    ExplainResult:
+      type: object
+      required: [plan, operatorTree]
+      properties:
+        plan:
+          type: string
+          description: Human-readable indented plan
+        operatorTree:
+          type: object
+          additionalProperties: true
+          description: JSON representation of the operator tree
+
+    ExplainResultResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/ExplainResult"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    # --- GraphQL ---
+    GraphQLRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: GraphQL query string
+        variables:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: Variables for the GraphQL query
+        operationName:
+          type: string
+          nullable: true
+          description: Name of the operation to execute
+
+    GraphQLResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+          nullable: true
+        errors:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              message:
+                type: string
+              locations:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    line:
+                      type: integer
+                    column:
+                      type: integer
+              extensions:
+                type: object
+                additionalProperties: true
+
+    # --- Health ---
+    HealthResponse:
+      type: object
+      required: [status, components, version]
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, DEGRADED]
+        components:
+          type: array
+          items:
+            type: object
+            required: [name, status]
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+                enum: [UP, DOWN, DEGRADED]
+              details:
+                type: string
+                nullable: true
+        version:
+          type: string

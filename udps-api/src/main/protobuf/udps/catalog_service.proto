@@ -1,0 +1,196 @@
+syntax = "proto3";
+
+package udps.api;
+
+import "udps/common.proto";
+
+option java_multiple_files = true;
+
+// Database messages
+message Database {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  Timestamp created_at = 4;
+  Timestamp updated_at = 5;
+}
+
+message CreateDatabaseRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message GetDatabaseRequest {
+  string id = 1;
+}
+
+message ListDatabasesRequest {
+  PaginationRequest pagination = 1;
+}
+
+message ListDatabasesResponse {
+  repeated Database databases = 1;
+  PaginationResponse pagination = 2;
+}
+
+message UpdateDatabaseRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message DeleteDatabaseRequest {
+  string id = 1;
+}
+
+// Schema messages
+message Schema {
+  string id = 1;
+  string database_id = 2;
+  string name = 3;
+  Timestamp created_at = 4;
+  Timestamp updated_at = 5;
+}
+
+message CreateSchemaRequest {
+  string database_id = 1;
+  string name = 2;
+}
+
+message GetSchemaRequest {
+  string id = 1;
+}
+
+message ListSchemasRequest {
+  string database_id = 1;
+  PaginationRequest pagination = 2;
+}
+
+message ListSchemasResponse {
+  repeated Schema schemas = 1;
+  PaginationResponse pagination = 2;
+}
+
+message UpdateSchemaRequest {
+  string id = 1;
+  string name = 2;
+}
+
+message DeleteSchemaRequest {
+  string id = 1;
+}
+
+// Table messages
+message Table {
+  string id = 1;
+  string schema_id = 2;
+  string name = 3;
+  int64 row_count = 4;
+  int64 size_bytes = 5;
+  string tier = 6;
+  Timestamp created_at = 7;
+  Timestamp updated_at = 8;
+}
+
+message CreateTableRequest {
+  string schema_id = 1;
+  string name = 2;
+  string tier = 3;
+}
+
+message GetTableRequest {
+  string id = 1;
+}
+
+message ListTablesRequest {
+  string schema_id = 1;
+  PaginationRequest pagination = 2;
+}
+
+message ListTablesResponse {
+  repeated Table tables = 1;
+  PaginationResponse pagination = 2;
+}
+
+message UpdateTableRequest {
+  string id = 1;
+  string name = 2;
+  string tier = 3;
+}
+
+message DeleteTableRequest {
+  string id = 1;
+}
+
+// Column messages
+message Column {
+  string id = 1;
+  string table_id = 2;
+  string name = 3;
+  string data_type = 4;
+  bool nullable = 5;
+  bool indexed = 6;
+  bool fts_enabled = 7;
+  bool pii_classified = 8;
+  int32 ordinal_position = 9;
+}
+
+message CreateColumnRequest {
+  string table_id = 1;
+  string name = 2;
+  string data_type = 3;
+  bool nullable = 4;
+  int32 ordinal_position = 5;
+}
+
+message GetColumnRequest {
+  string id = 1;
+}
+
+message ListColumnsRequest {
+  string table_id = 1;
+  PaginationRequest pagination = 2;
+}
+
+message ListColumnsResponse {
+  repeated Column columns = 1;
+  PaginationResponse pagination = 2;
+}
+
+message UpdateColumnRequest {
+  string id = 1;
+  string name = 2;
+  string data_type = 3;
+  bool nullable = 4;
+  bool indexed = 5;
+}
+
+message DeleteColumnRequest {
+  string id = 1;
+}
+
+service CatalogService {
+  rpc CreateDatabase(CreateDatabaseRequest) returns (Database);
+  rpc GetDatabase(GetDatabaseRequest) returns (Database);
+  rpc ListDatabases(ListDatabasesRequest) returns (ListDatabasesResponse);
+  rpc UpdateDatabase(UpdateDatabaseRequest) returns (Database);
+  rpc DeleteDatabase(DeleteDatabaseRequest) returns (ApiResponse);
+
+  rpc CreateSchema(CreateSchemaRequest) returns (Schema);
+  rpc GetSchema(GetSchemaRequest) returns (Schema);
+  rpc ListSchemas(ListSchemasRequest) returns (ListSchemasResponse);
+  rpc UpdateSchema(UpdateSchemaRequest) returns (Schema);
+  rpc DeleteSchema(DeleteSchemaRequest) returns (ApiResponse);
+
+  rpc CreateTable(CreateTableRequest) returns (Table);
+  rpc GetTable(GetTableRequest) returns (Table);
+  rpc ListTables(ListTablesRequest) returns (ListTablesResponse);
+  rpc UpdateTable(UpdateTableRequest) returns (Table);
+  rpc DeleteTable(DeleteTableRequest) returns (ApiResponse);
+
+  rpc CreateColumn(CreateColumnRequest) returns (Column);
+  rpc GetColumn(GetColumnRequest) returns (Column);
+  rpc ListColumns(ListColumnsRequest) returns (ListColumnsResponse);
+  rpc UpdateColumn(UpdateColumnRequest) returns (Column);
+  rpc DeleteColumn(DeleteColumnRequest) returns (ApiResponse);
+}

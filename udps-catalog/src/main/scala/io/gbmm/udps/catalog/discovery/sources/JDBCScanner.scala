@@ -1,12 +1,11 @@
 package io.gbmm.udps.catalog.discovery.sources
 
 import cats.effect.{IO, Resource}
-import cats.syntax.all._
 import com.typesafe.scalalogging.LazyLogging
 import io.gbmm.udps.catalog.discovery._
 import io.gbmm.udps.core.domain.DataType
 
-import java.sql.{Connection, DatabaseMetaData, DriverManager, ResultSet, Types}
+import java.sql.{Connection, DatabaseMetaData, DriverManager, Types}
 import scala.collection.mutable.ListBuffer
 
 final class JDBCScanner extends DataSourceScanner with LazyLogging {
@@ -39,9 +38,6 @@ final class JDBCScanner extends DataSourceScanner with LazyLogging {
     Resource.make(
       IO.blocking(DriverManager.getConnection(url, username, password))
     )(conn => IO.blocking(conn.close()).handleErrorWith(_ => IO.unit))
-
-  private def resultSetResource(acquire: => ResultSet): Resource[IO, ResultSet] =
-    Resource.make(IO.blocking(acquire))(rs => IO.blocking(rs.close()).handleErrorWith(_ => IO.unit))
 
   private def discoverTables(
     metadata: DatabaseMetaData,

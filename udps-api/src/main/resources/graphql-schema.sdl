@@ -1,0 +1,219 @@
+"""UDPS - Universal Data Platform Service GraphQL API"""
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+"""An ISO-8601 date-time string"""
+scalar DateTime
+
+"""A universally unique identifier compliant with RFC 4122"""
+scalar UUID
+
+"""UDPS catalog and query operations"""
+type Query {
+  """List all registered databases"""
+  databases: [Database!]!
+
+  """Retrieve a database by its identifier"""
+  database(id: UUID!): Database
+
+  """List schemas within a database"""
+  schemas(databaseId: UUID!): [CatalogSchema!]!
+
+  """Retrieve a schema by its identifier"""
+  schema(id: UUID!): CatalogSchema
+
+  """List tables within a schema"""
+  tables(schemaId: UUID!): [Table!]!
+
+  """Retrieve a table by its identifier"""
+  table(id: UUID!): Table
+
+  """List columns within a table"""
+  columns(tableId: UUID!): [Column!]!
+
+  """Retrieve a column by its identifier"""
+  column(id: UUID!): Column
+
+  """Execute a SQL query and return results"""
+  executeQuery(sql: String!): QueryResult!
+}
+
+"""UDPS catalog mutation operations"""
+type Mutation {
+  """Create a new database entry in the catalog"""
+  createDatabase(input: CreateDatabaseInput!): Database!
+
+  """Update an existing database entry"""
+  updateDatabase(input: UpdateDatabaseInput!): Database!
+
+  """Delete a database entry by identifier"""
+  deleteDatabase(id: UUID!): Boolean!
+
+  """Create a new schema entry in the catalog"""
+  createSchema(input: CreateSchemaInput!): CatalogSchema!
+
+  """Update an existing schema entry"""
+  updateSchema(input: UpdateSchemaInput!): CatalogSchema!
+
+  """Delete a schema entry by identifier"""
+  deleteSchema(id: UUID!): Boolean!
+
+  """Create a new table entry in the catalog"""
+  createTable(input: CreateTableInput!): Table!
+
+  """Update an existing table entry"""
+  updateTable(input: UpdateTableInput!): Table!
+
+  """Delete a table entry by identifier"""
+  deleteTable(id: UUID!): Boolean!
+
+  """Create a new column entry in the catalog"""
+  createColumn(input: CreateColumnInput!): Column!
+
+  """Update an existing column entry"""
+  updateColumn(input: UpdateColumnInput!): Column!
+
+  """Delete a column entry by identifier"""
+  deleteColumn(id: UUID!): Boolean!
+}
+
+"""A registered database in the catalog"""
+type Database {
+  id: UUID!
+  name: String!
+  description: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  """Schemas belonging to this database"""
+  schemas: [CatalogSchema!]!
+}
+
+"""A schema within a database"""
+type CatalogSchema {
+  id: UUID!
+  databaseId: UUID!
+  name: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  """Tables belonging to this schema"""
+  tables: [Table!]!
+}
+
+"""A table within a schema"""
+type Table {
+  id: UUID!
+  schemaId: UUID!
+  name: String!
+  rowCount: Long!
+  sizeBytes: Long!
+  tier: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+
+  """Columns belonging to this table"""
+  columns: [Column!]!
+}
+
+"""A column within a table"""
+type Column {
+  id: UUID!
+  tableId: UUID!
+  name: String!
+  dataType: String!
+  nullable: Boolean!
+  indexed: Boolean!
+  ftsEnabled: Boolean!
+  piiClassified: Boolean!
+  ordinalPosition: Int!
+}
+
+"""The result of a SQL query execution"""
+type QueryResult {
+  queryId: String!
+  columns: [ColumnDescriptor!]!
+  rows: [ResultRow!]!
+  rowCount: Long!
+  executionTimeMs: Long!
+  stagesExecuted: Int!
+}
+
+"""Describes a result column with name and type"""
+type ColumnDescriptor {
+  name: String!
+  typeName: String!
+}
+
+"""A single row in a query result"""
+type ResultRow {
+  fields: [RowField!]!
+}
+
+"""A single key-value pair within a result row"""
+type RowField {
+  key: String!
+  value: String!
+}
+
+"""A 64-bit integer"""
+scalar Long
+
+input CreateDatabaseInput {
+  name: String!
+  description: String
+}
+
+input UpdateDatabaseInput {
+  id: UUID!
+  name: String
+  description: String
+}
+
+input CreateSchemaInput {
+  databaseId: UUID!
+  name: String!
+}
+
+input UpdateSchemaInput {
+  id: UUID!
+  name: String
+}
+
+input CreateTableInput {
+  schemaId: UUID!
+  name: String!
+  tier: String!
+}
+
+input UpdateTableInput {
+  id: UUID!
+  name: String
+  rowCount: Long
+  sizeBytes: Long
+  tier: String
+}
+
+input CreateColumnInput {
+  tableId: UUID!
+  name: String!
+  dataType: String!
+  nullable: Boolean!
+  indexed: Boolean!
+  ftsEnabled: Boolean!
+  piiClassified: Boolean!
+  ordinalPosition: Int!
+}
+
+input UpdateColumnInput {
+  id: UUID!
+  name: String
+  dataType: String
+  nullable: Boolean
+  indexed: Boolean
+  ftsEnabled: Boolean
+  piiClassified: Boolean
+  ordinalPosition: Int
+}

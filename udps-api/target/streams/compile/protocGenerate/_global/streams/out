@@ -1,1 +1,8 @@
 [debug] Invalidating cache (input changed)
+[info] Compiling 5 protobuf files to /home/tshepo/projects/seri-sa/udps/udps-api/target/scala-2.13/src_managed/main/scalapb
+[debug] protoc options:
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-api/src/main/protobuf/udps/health_service.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-api/src/main/protobuf/udps/common.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-api/src/main/protobuf/udps/query_service.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-api/src/main/protobuf/udps/catalog_service.proto
+[debug] Compiling schema /home/tshepo/projects/seri-sa/udps/udps-api/src/main/protobuf/udps/storage_service.proto

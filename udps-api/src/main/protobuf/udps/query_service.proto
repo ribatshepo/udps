@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package udps.api;
+
+import "udps/common.proto";
+
+option java_multiple_files = true;
+
+message ExecuteQueryRequest {
+  string sql = 1;
+  map<string, string> parameters = 2;
+  int32 max_rows = 3;
+  int32 timeout_seconds = 4;
+}
+
+message ColumnDescriptor {
+  string name = 1;
+  string type_name = 2;
+}
+
+message QueryResultRow {
+  map<string, string> values = 1;
+}
+
+message QueryResult {
+  string query_id = 1;
+  repeated ColumnDescriptor columns = 2;
+  repeated QueryResultRow rows = 3;
+  int64 row_count = 4;
+  int64 execution_time_ms = 5;
+  int32 stages_executed = 6;
+}
+
+message ExplainQueryRequest {
+  string sql = 1;
+}
+
+message QueryPlan {
+  string query_id = 1;
+  string logical_plan = 2;
+  string physical_plan = 3;
+  double estimated_cost = 4;
+  int64 estimated_rows = 5;
+}
+
+message AnalyzeQueryRequest {
+  string sql = 1;
+}
+
+message QueryAnalysis {
+  string query_id = 1;
+  double estimated_cost = 2;
+  int64 estimated_rows = 3;
+  repeated string tables_accessed = 4;
+  repeated string columns_accessed = 5;
+  string complexity = 6;
+}
+
+message GetQueryStatusRequest {
+  string query_id = 1;
+}
+
+message QueryStatus {
+  string query_id = 1;
+  string state = 2;
+  double progress = 3;
+  int64 rows_processed = 4;
+  string error_message = 5;
+}
+
+service QueryService {
+  rpc ExecuteQuery(ExecuteQueryRequest) returns (QueryResult);
+  rpc ExplainQuery(ExplainQueryRequest) returns (QueryPlan);
+  rpc AnalyzeQuery(AnalyzeQueryRequest) returns (QueryAnalysis);
+  rpc GetQueryStatus(GetQueryStatusRequest) returns (QueryStatus);
+}

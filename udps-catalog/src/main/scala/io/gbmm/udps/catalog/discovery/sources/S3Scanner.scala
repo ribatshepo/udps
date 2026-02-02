@@ -13,7 +13,6 @@ import org.apache.parquet.schema.{LogicalTypeAnnotation, PrimitiveType}
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
-import scala.util.Using
 
 final class S3Scanner extends DataSourceScanner with LazyLogging {
 
@@ -134,7 +133,7 @@ final class S3Scanner extends DataSourceScanner with LazyLogging {
       mapPrimitiveType(primitive, logicalType)
     } else {
       val groupType = field.asGroupType()
-      val childFields = groupType.getFields.asScala.toSeq.zipWithIndex.map { case (f, i) =>
+      val childFields = groupType.getFields.asScala.toSeq.map { f =>
         import io.gbmm.udps.core.domain.ColumnMetadata
         ColumnMetadata(
           name = f.getName,
@@ -155,9 +154,9 @@ final class S3Scanner extends DataSourceScanner with LazyLogging {
   ): DataType = {
     import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName._
     logicalType match {
-      case Some(lt: LogicalTypeAnnotation.StringLogicalTypeAnnotation) =>
+      case Some(_: LogicalTypeAnnotation.StringLogicalTypeAnnotation) =>
         DataType.Utf8
-      case Some(lt: LogicalTypeAnnotation.DateLogicalTypeAnnotation) =>
+      case Some(_: LogicalTypeAnnotation.DateLogicalTypeAnnotation) =>
         DataType.Date32
       case Some(lt: LogicalTypeAnnotation.DecimalLogicalTypeAnnotation) =>
         DataType.Decimal(precision = lt.getPrecision, scale = lt.getScale)

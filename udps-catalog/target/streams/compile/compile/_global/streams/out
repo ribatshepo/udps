@@ -1,7 +1,19 @@
-[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/IncrementalScanner.scala:8:33: Unused import
-[error] import doobie.implicits.javasql._
-[error]                                 ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/SchemaDiscovery.scala:6:24: Unused import
-[error] import cats.syntax.all._
-[error]                        ^
-[error] two errors found
+[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/sources/JDBCScanner.scala:43:15: private method resultSetResource in class JDBCScanner is never used
+[error]   private def resultSetResource(acquire: => ResultSet): Resource[IO, ResultSet] =
+[error]               ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/sources/KafkaScanner.scala:75:62: implicit numeric widening
+[error]     })(client => IO.blocking(client.close(Duration.ofSeconds(AdminClientCloseTimeoutSec))).handleErrorWith(_ => IO.unit))
+[error]                                                              ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/sources/KafkaScanner.scala:88:66: implicit numeric widening
+[error]     })(consumer => IO.blocking(consumer.close(Duration.ofSeconds(ConsumerCloseTimeoutSec))).handleErrorWith(_ => IO.unit))
+[error]                                                                  ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/sources/KafkaScanner.scala:141:49: implicit numeric widening
+[error]         try { consumer.close(Duration.ofSeconds(ConsumerCloseTimeoutSec)) } catch { case _: Exception => () }
+[error]                                                 ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/sources/KafkaScanner.scala:77:15: private method consumerResource in class KafkaScanner is never used
+[error]   private def consumerResource(bootstrapServers: String, options: Map[String, String]): Resource[IO, KafkaConsumer[String, String]] =
+[error]               ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/sources/S3Scanner.scala:16:19: Unused import
+[error] import scala.util.Using
+[error]                   ^
+[error] 6 errors found

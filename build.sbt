@@ -77,11 +77,25 @@ lazy val governance = (project in file("udps-governance"))
   )
   .dependsOn(core, catalog)
 
-// API module - gRPC API layer
+// API module - gRPC and REST API layer
 lazy val api = (project in file("udps-api"))
   .settings(
     name := "udps-api",
-    libraryDependencies ++= coreDeps ++ grpcDeps ++ httpDeps ++ testDeps
+    libraryDependencies ++= coreDeps ++ grpcDeps ++ httpDeps ++ jsonDeps ++ graphqlDeps ++ testDeps ++ Seq(
+      "com.google.protobuf" % "protobuf-java" % "3.25.2" % "protobuf"
+    ),
+    Compile / PB.targets := Seq(
+      scalapb.gen(
+        flatPackage = false,
+        javaConversions = false,
+        grpc = true,
+        singleLineToProtoString = false,
+        asciiFormatToString = false
+      ) -> (Compile / sourceManaged).value / "scalapb"
+    ),
+    Compile / PB.protoSources := Seq(
+      (Compile / sourceDirectory).value / "protobuf"
+    )
   )
   .dependsOn(core, query, catalog, governance, integration)
 

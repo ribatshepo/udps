@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package udps.api;
+
+option java_multiple_files = true;
+
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+message UUID {
+  string value = 1;
+}
+
+message PaginationRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message PaginationResponse {
+  string next_page_token = 1;
+  int32 total_count = 2;
+}
+
+message ApiResponse {
+  bool success = 1;
+  string message = 2;
+  string error_code = 3;
+  string correlation_id = 4;
+}
