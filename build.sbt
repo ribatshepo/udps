@@ -85,12 +85,14 @@ lazy val api = (project in file("udps-api"))
   )
   .dependsOn(core, query, catalog, governance, integration)
 
-// Integration module - protocol definitions (USP/UCCP)
+// Integration module - protocol definitions and clients (USP/UCCP/USTRP)
 lazy val integration = (project in file("udps-integration"))
   .settings(
     name := "udps-integration",
-    libraryDependencies ++= coreDeps ++ grpcDeps ++ testDeps ++ Seq(
-      "com.google.protobuf" % "protobuf-java" % "3.25.2" % "protobuf"
+    libraryDependencies ++= coreDeps ++ grpcDeps ++ httpDeps ++ jsonDeps ++ messagingDeps ++ cacheDeps ++ testDeps ++ Seq(
+      "com.google.protobuf" % "protobuf-java" % "3.25.2" % "protobuf",
+      akkaActor,
+      akkaStream
     ),
     Compile / PB.targets := Seq(
       scalapb.gen(

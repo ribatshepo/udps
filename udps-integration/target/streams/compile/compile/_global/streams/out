@@ -1,0 +1,82 @@
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/tls/CertificateReloader.scala:77:16: type mismatch;
+[error]  found   : Path (in fs2.io.file) 
+[error]  required: Path (in java.nio.file) 
+[error]         .watch(dir, WATCH_POLL_INTERVAL, modifiers = Nil)
+[error]                ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/tls/CertificateReloader.scala:77:21: type mismatch;
+[error]  found   : scala.concurrent.duration.FiniteDuration
+[error]  required: Seq[fs2.io.Watcher.EventType]
+[error]         .watch(dir, WATCH_POLL_INTERVAL, modifiers = Nil)
+[error]                     ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/tls/CertificateReloader.scala:88:8: could not find implicit value for parameter F: cats.effect.Concurrent[[x]fs2.Pure[x]]
+[error]       .parJoinUnbounded
+[error]        ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/tls/CertificateReloader.scala:96:34: type mismatch;
+[error]  found   : Object
+[error]  required: fs2.io.file.Path
+[error]     Option(path.parent).getOrElse(Path("."))
+[error]                                  ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/tls/CertificateReloader.scala:96:25: a type was inferred to be `Object`; this may indicate a programming error.
+[error]     Option(path.parent).getOrElse(Path("."))
+[error]                         ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/tls/CertificateReloader.scala:39:15: private val WATCH_POLL_INTERVAL in object CertificateReloader is never used
+[error]   private val WATCH_POLL_INTERVAL: FiniteDuration = 5.seconds
+[error]               ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/tls/CertificateReloader.scala:98:15: private method extractFileName in object CertificateReloader is never used
+[error]   private def extractFileName(event: fs2.io.file.Watcher.Event): Option[String] =
+[error]               ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/uccp/LoadBalancer.scala:4:24: Unused import
+[error] import cats.syntax.all._
+[error]                        ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/uccp/ServiceDiscoveryClient.scala:5:24: Unused import
+[error] import cats.syntax.all._
+[error]                        ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:102:22: value success is not a member of usp.authentication.authentication.RefreshTokenResponse
+[error]         if (response.success) {
+[error]                      ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:103:40: value expiresAt is not a member of usp.authentication.authentication.RefreshTokenResponse
+[error]           val expiresAt = if (response.expiresAt > 0L) {
+[error]                                        ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:104:49: value expiresAt is not a member of usp.authentication.authentication.RefreshTokenResponse
+[error]             Some(Instant.ofEpochSecond(response.expiresAt))
+[error]                                                 ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:108:37: value userId is not a member of usp.authentication.authentication.RefreshTokenResponse
+[error]           fetchUserContext(response.userId, response.sessionId, expiresAt)
+[error]                                     ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:108:54: value sessionId is not a member of usp.authentication.authentication.RefreshTokenResponse
+[error]           fetchUserContext(response.userId, response.sessionId, expiresAt)
+[error]                                                      ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:112:36: value errorCode is not a member of usp.authentication.authentication.RefreshTokenResponse
+[error]               errorCode = response.errorCode,
+[error]                                    ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:113:40: value message is not a member of usp.authentication.authentication.RefreshTokenResponse
+[error]               serverMessage = response.message
+[error]                                        ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:159:22: value valid is not a member of usp.authentication.authentication.ValidateTokenResponse
+[error]         if (response.valid) {
+[error]                      ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:160:50: value > is not a member of Option[com.google.protobuf.timestamp.Timestamp]
+[error]           val expiresAt = if (response.expiresAt > 0L) {
+[error]                                                  ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:161:49: type mismatch;
+[error]  found   : Option[com.google.protobuf.timestamp.Timestamp]
+[error]  required: Long
+[error]             Some(Instant.ofEpochSecond(response.expiresAt))
+[error]                                                 ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:165:54: value sessionId is not a member of usp.authentication.authentication.ValidateTokenResponse
+[error]           fetchUserContext(response.userId, response.sessionId, expiresAt)
+[error]                                                      ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:192:68: unknown parameter name: sessionId
+[error]     val request = GetUserContextRequest(userId = userId, sessionId = sessionId)
+[error]                                                                    ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:196:27: value userId is not a member of usp.authentication.authentication.GetUserContextResponse
+[error] did you mean user?
+[error]         userId = response.userId,
+[error]                           ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:197:26: value roles is not a member of usp.authentication.authentication.GetUserContextResponse
+[error]         roles = response.roles.toList,
+[error]                          ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-integration/src/main/scala/io/gbmm/udps/integration/usp/AuthenticationClient.scala:198:32: value permissions is not a member of usp.authentication.authentication.GetUserContextResponse
+[error]         permissions = response.permissions.toList,
+[error]                                ^
+[error] 24 errors found
