@@ -1,0 +1,180 @@
+package io.gbmm.udps.query.physical
+
+/** Expression types used in physical operators for predicates and projections. */
+sealed trait Expression extends Product with Serializable
+
+object Expression {
+  final case class ColumnRef(name: String) extends Expression
+  final case class Literal(value: Any) extends Expression
+  final case class BinaryOp(op: String, left: Expression, right: Expression) extends Expression
+  final case class UnaryOp(op: String, operand: Expression) extends Expression
+  final case class FunctionCall(name: String, args: Seq[Expression]) extends Expression
+  final case class IsNull(expr: Expression) extends Expression
+  final case class IsNotNull(expr: Expression) extends Expression
+  final case class And(left: Expression, right: Expression) extends Expression
+  final case class Or(left: Expression, right: Expression) extends Expression
+  final case class Not(expr: Expression) extends Expression
+}
+
+/** Sort direction for ORDER BY clauses. */
+sealed trait SortDirection extends Product with Serializable
+
+object SortDirection {
+  case object Ascending extends SortDirection
+  case object Descending extends SortDirection
+}
+
+/** Sort key pairing a column with its sort direction. */
+final case class SortKey(column: String, direction: SortDirection)
+
+/** Join type for hash and nested loop joins. */
+sealed trait JoinType extends Product with Serializable
+
+object JoinType {
+  case object Inner extends JoinType
+  case object LeftOuter extends JoinType
+  case object RightOuter extends JoinType
+  case object FullOuter extends JoinType
+  case object Cross extends JoinType
+}
+
+/** Aggregate function specification. */
+final case class AggregateFunction(
+  name: String,
+  column: String,
+  alias: String
+)
+
+/** Projection column specification: either a direct column reference or a computed expression. */
+final case class ProjectionColumn(
+  expression: Expression,
+  alias: String
+)
+
+/** Physical operator tree representing a concrete execution plan.
+  *
+  * Each operator corresponds to a specific execution strategy chosen by the
+  * query optimizer. The operators form a tree that is decomposed into stages
+  * for distributed execution.
+  */
+sealed trait PhysicalOperator extends Product with Serializable {
+
+  /** Estimated row count output by this operator, used for cost estimation. */
+  def estimatedRowCount: Long
+}
+
+object PhysicalOperator {
+
+  final case class TableScanOp(
+    tableName: String,
+    namespace: String,
+    columns: Seq[String],
+    predicate: Option[Expression],
+    partitionKeys: Seq[String],
+    estimatedRowCount: Long
+  ) extends PhysicalOperator
+
+  final case class FilterOp(
+    child: PhysicalOperator,
+    predicate: Expression,
+    estimatedRowCount: Long
+  ) extends PhysicalOperator
+
+  final case class ProjectOp(
+    child: PhysicalOperator,
+    projections: Seq[ProjectionColumn],
+    estimatedRowCount: Long
+  ) extends PhysicalOperator
+
+  final case class HashJoinOp(
+    left: PhysicalOperator,
+    right: PhysicalOperator,
+    leftKeys: Seq[String],
+    rightKeys: Seq[String],
+    joinType: JoinType,
+    estimatedRowCount: Long
+  ) extends PhysicalOperator
+
+  final case class NestedLoopJoinOp(
+    left: PhysicalOperator,
+    right: PhysicalOperator,
+    condition: Option[Expression],
+    joinType: JoinType,
+    estimatedRowCount: Long
+  ) extends PhysicalOperator
+
+  final case class HashAggregateOp(
+    child: PhysicalOperator,
+    groupByKeys: Seq[String],
+    aggregates: Seq[AggregateFunction],
+    estimatedRowCount: Long
+  ) extends PhysicalOperator
+
+  final case class SortOp(
+    child: PhysicalOperator,
+    sortKeys: Seq[SortKey],
+    estimatedRowCount: Long
+  ) extends PhysicalOperator
+
+  final case class LimitOp(
+    child: PhysicalOperator,
+    limit: Long,
+    offset: Long,
+    estimatedRowCount: Long
+  ) extends PhysicalOperator
+
+  final case class UnionOp(
+    children: Seq[PhysicalOperator],
+    all: Boolean,
+    estimatedRowCount: Long
+  ) extends PhysicalOperator
+}
+
+/** A single stage in the execution DAG, representing one unit of distributed work.
+  *
+  * @param id             unique stage identifier within the DAG
+  * @param operator       the physical operator to execute
+  * @param dependencies   set of stage IDs that must complete before this stage can run
+  * @param partitionCount number of partitions (parallel tasks) for this stage
+  */
+final case class ExecutionStage(
+  id: String,
+  operator: PhysicalOperator,
+  dependencies: Set[String],
+  partitionCount: Int
+)
+
+/** Directed acyclic graph of execution stages with topological ordering.
+  *
+  * @param stages     all stages in the plan
+  * @param rootStages stage IDs with no dependents (final output stages)
+  */
+final case class ExecutionDAG(
+  stages: Map[String, ExecutionStage],
+  rootStages: Set[String]
+) {
+
+  /** Return stage IDs in a valid topological execution order (dependencies first). */
+  def topologicalOrder: Seq[String] = {
+    val visited = scala.collection.mutable.LinkedHashSet.empty[String]
+    val visiting = scala.collection.mutable.Set.empty[String]
+
+    def visit(stageId: String): Unit = {
+      if (visited.contains(stageId)) return
+      if (visiting.contains(stageId)) {
+        throw new IllegalStateException(
+          s"Cycle detected in ExecutionDAG at stage '$stageId'"
+        )
+      }
+      visiting += stageId
+      stages.get(stageId).foreach { stage =>
+        stage.dependencies.foreach(visit)
+      }
+      visiting -= stageId
+      visited += stageId
+    }
+
+    stages.keys.foreach(visit)
+    visited.toSeq
+  }
+}

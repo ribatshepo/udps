@@ -137,9 +137,13 @@ final class ViewRefresher private (
   /**
    * Augment a SQL query with a watermark filter. Wraps the original
    * query as a subquery and applies a temporal predicate.
+   *
+   * The timestamp is formatted as ISO-8601 and validated to prevent injection.
    */
-  private def augmentQueryWithWatermark(sql: String, since: Instant): String =
-    s"SELECT * FROM ($sql) AS __view_src WHERE __view_src._updated_at > '${since.toString}'"
+  private def augmentQueryWithWatermark(sql: String, since: Instant): String = {
+    val sanitizedTimestamp = since.toString.replaceAll("[^0-9TZ:.+-]", "")
+    s"SELECT * FROM ($sql) AS __view_src WHERE __view_src._updated_at > TIMESTAMP '$sanitizedTimestamp'"
+  }
 
   /**
    * Parse a simplified cron expression into a [[FiniteDuration]].

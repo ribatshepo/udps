@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: udps_catalog
       POSTGRES_USER: udps
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-udps_dev_pass}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - udps-postgres-data:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
@@ -30,8 +30,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-udps_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-udps_minio_pass}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
     command: server /data --console-address ":9001"
     volumes:
       - udps-minio-data:/data

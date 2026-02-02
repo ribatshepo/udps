@@ -1,0 +1,314 @@
+name: UDPS CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  JDK_VERSION: "17"
+  SBT_OPTS: "-Xmx2G -Xss2M"
+  SCALA_VERSION: "2.13.12"
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JDK_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JDK_VERSION }}
+          distribution: temurin
+
+      - name: Cache SBT dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.cache/coursier
+            target
+            */target
+          key: sbt-${{ runner.os }}-${{ hashFiles('**/*.sbt', 'project/Dependencies.scala', 'project/plugins.sbt', 'project/build.properties') }}
+          restore-keys: |
+            sbt-${{ runner.os }}-
+
+      - name: Compile all modules
+        run: sbt -batch "compile; Test/compile"
+
+      - name: Run tests
+        run: sbt -batch test
+
+      - name: Generate test reports
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Results
+          path: "**/target/test-reports/*.xml"
+          reporter: java-junit
+          fail-on-error: false
+
+  security-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JDK_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JDK_VERSION }}
+          distribution: temurin
+
+      - name: Cache SBT dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.cache/coursier
+            target
+            */target
+          key: sbt-${{ runner.os }}-${{ hashFiles('**/*.sbt', 'project/Dependencies.scala', 'project/plugins.sbt', 'project/build.properties') }}
+          restore-keys: |
+            sbt-${{ runner.os }}-
+
+      - name: Generate dependency tree
+        run: sbt -batch "dependencyTree" > dependency-tree.txt 2>&1 || true
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  docker:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [build, security-scan]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JDK_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JDK_VERSION }}
+          distribution: temurin
+
+      - name: Cache SBT dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.cache/coursier
+            target
+            */target
+          key: sbt-${{ runner.os }}-${{ hashFiles('**/*.sbt', 'project/Dependencies.scala', 'project/plugins.sbt', 'project/build.properties') }}
+          restore-keys: |
+            sbt-${{ runner.os }}-
+
+      - name: Build assembly JAR
+        run: sbt -batch "api/assembly"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU for multi-arch builds
+        uses: docker/setup-qemu-action@v3
+
+      - name: Log in to Docker registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_REGISTRY }}/udps
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            JAR_FILE=udps-api/target/scala-2.13/udps-api-assembly-*.jar
+
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKER_REGISTRY }}/udps:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [docker]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: https://staging.udps.internal
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure Kubernetes context
+        run: |
+          mkdir -p "${HOME}/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "${HOME}/.kube/config"
+          chmod 600 "${HOME}/.kube/config"
+
+      - name: Deploy to staging namespace
+        run: |
+          IMAGE_TAG="${{ github.sha }}"
+          REGISTRY="${{ secrets.DOCKER_REGISTRY }}"
+
+          kubectl set image deployment/udps-api \
+            udps-api="${REGISTRY}/udps:${IMAGE_TAG}" \
+            --namespace=udps-staging
+
+          kubectl rollout status deployment/udps-api \
+            --namespace=udps-staging \
+            --timeout=300s
+
+      - name: Run smoke tests
+        run: |
+          STAGING_URL="https://staging.udps.internal"
+          MAX_RETRIES=10
+          RETRY_INTERVAL=10
+
+          for i in $(seq 1 "${MAX_RETRIES}"); do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${STAGING_URL}/health" || echo "000")
+            if [ "${HTTP_STATUS}" = "200" ]; then
+              echo "Staging health check passed"
+              exit 0
+            fi
+            echo "Attempt ${i}/${MAX_RETRIES}: HTTP ${HTTP_STATUS}, retrying in ${RETRY_INTERVAL}s..."
+            sleep "${RETRY_INTERVAL}"
+          done
+
+          echo "Staging health check failed after ${MAX_RETRIES} attempts"
+          exit 1
+
+      - name: Clean up kubeconfig
+        if: always()
+        run: rm -f "${HOME}/.kube/config"
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [docker]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://udps.internal
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure Kubernetes context
+        run: |
+          mkdir -p "${HOME}/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "${HOME}/.kube/config"
+          chmod 600 "${HOME}/.kube/config"
+
+      - name: Deploy to production namespace
+        run: |
+          IMAGE_TAG="${{ github.sha }}"
+          REGISTRY="${{ secrets.DOCKER_REGISTRY }}"
+
+          kubectl set image deployment/udps-api \
+            udps-api="${REGISTRY}/udps:${IMAGE_TAG}" \
+            --namespace=udps-production
+
+          kubectl rollout status deployment/udps-api \
+            --namespace=udps-production \
+            --timeout=300s
+
+      - name: Run production smoke tests
+        run: |
+          PROD_URL="https://udps.internal"
+          MAX_RETRIES=10
+          RETRY_INTERVAL=10
+
+          for i in $(seq 1 "${MAX_RETRIES}"); do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${PROD_URL}/health" || echo "000")
+            if [ "${HTTP_STATUS}" = "200" ]; then
+              echo "Production health check passed"
+              exit 0
+            fi
+            echo "Attempt ${i}/${MAX_RETRIES}: HTTP ${HTTP_STATUS}, retrying in ${RETRY_INTERVAL}s..."
+            sleep "${RETRY_INTERVAL}"
+          done
+
+          echo "Production health check failed after ${MAX_RETRIES} attempts"
+          exit 1
+
+      - name: Clean up kubeconfig
+        if: always()
+        run: rm -f "${HOME}/.kube/config"

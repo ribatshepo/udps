@@ -1,0 +1,192 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: udps
+  namespace: udps
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: server
+    app.kubernetes.io/part-of: seri-sa-platform
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: udps
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: udps
+        app.kubernetes.io/component: server
+        app.kubernetes.io/part-of: seri-sa-platform
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: udps
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - udps
+                topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z ${POSTGRES_HOST} ${POSTGRES_PORT}; do
+                echo "Waiting for PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}..."
+                sleep 2
+              done
+              echo "PostgreSQL is available."
+          envFrom:
+            - configMapRef:
+                name: udps-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+      containers:
+        - name: udps
+          image: ghcr.io/gbmm/udps:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc
+              containerPort: 50060
+              protocol: TCP
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: JAVA_OPTS
+              valueFrom:
+                configMapKeyRef:
+                  name: udps-config
+                  key: JAVA_OPTS
+            - name: JVM_HEAP_MIN
+              valueFrom:
+                configMapKeyRef:
+                  name: udps-config
+                  key: JVM_HEAP_MIN
+            - name: JVM_HEAP_MAX
+              valueFrom:
+                configMapKeyRef:
+                  name: udps-config
+                  key: JVM_HEAP_MAX
+          envFrom:
+            - configMapRef:
+                name: udps-config
+            - secretRef:
+                name: udps-secrets
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: health
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: health
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: health
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /etc/udps/tls
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: app-logs
+              mountPath: /var/log/udps
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: udps-tls
+            optional: false
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: app-logs
+          emptyDir:
+            sizeLimit: 512Mi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: udps
+  namespace: udps
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/part-of: seri-sa-platform

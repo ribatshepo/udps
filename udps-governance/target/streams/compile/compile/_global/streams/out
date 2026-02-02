@@ -1,0 +1,8 @@
+[error] /home/tshepo/projects/seri-sa/udps/udps-governance/src/main/scala/io/gbmm/udps/governance/audit/AuditLogger.scala:141:19: value void is not a member of doobie.ConnectionIO[Int]
+[error] did you mean fold?
+[error]       .update.run.void
+[error]                   ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-governance/src/main/scala/io/gbmm/udps/governance/audit/AuditLogger.scala:14:24: Unused import
+[error] import io.circe.syntax._
+[error]                        ^
+[error] two errors found

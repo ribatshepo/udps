@@ -1,0 +1,7 @@
+[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/IncrementalScanner.scala:8:33: Unused import
+[error] import doobie.implicits.javasql._
+[error]                                 ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/scala/io/gbmm/udps/catalog/discovery/SchemaDiscovery.scala:6:24: Unused import
+[error] import cats.syntax.all._
+[error]                        ^
+[error] two errors found

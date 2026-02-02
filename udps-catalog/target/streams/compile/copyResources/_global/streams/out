@@ -1,2 +1,2 @@
 [debug] Copy resource mappings: 
-[debug] 	
+[debug] 	(/home/tshepo/projects/seri-sa/udps/udps-catalog/src/main/resources/db/migration/V001__create_metadata_schema.sql,/home/tshepo/projects/seri-sa/udps/udps-catalog/target/scala-2.13/classes/db/migration/V001__create_metadata_schema.sql)

@@ -1,0 +1,430 @@
+services:
+  udps:
+    image: ghcr.io/gbmm/udps:${UDPS_VERSION}
+    container_name: udps-app
+    restart: always
+    ports:
+      - "${GRPC_PORT:-50060}:50060"
+      - "${HTTPS_PORT:-8443}:8443"
+      - "${HEALTH_PORT:-8081}:8081"
+      - "${METRICS_PORT:-9090}:9090"
+    environment:
+      GRPC_PORT: "50060"
+      HTTPS_PORT: "8443"
+      HEALTH_PORT: "8081"
+      METRICS_PORT: "9090"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      MINIO_ENDPOINT: https://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: udps
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: json
+      TLS_CERT_PATH: /etc/udps/tls/tls.crt
+      TLS_KEY_PATH: /etc/udps/tls/tls.key
+      TLS_CA_PATH: /etc/udps/tls/ca.crt
+      JAVA_OPTS: >-
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=200
+        -XX:+UseStringDeduplication
+        -XX:+OptimizeStringConcat
+        -Xms${JVM_HEAP_MIN:-512m}
+        -Xmx${JVM_HEAP_MAX:-2g}
+        -Djava.security.egd=file:/dev/urandom
+      FEATURE_LINEAGE_TRACKING: "true"
+      FEATURE_QUERY_CACHE: "true"
+      FEATURE_GOVERNANCE_POLICIES: "true"
+      FEATURE_ARCHIVE_TIER: "true"
+    volumes:
+      - ${TLS_CERT_DIR:-./.tls}:/etc/udps/tls:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service"
+    labels:
+      service: udps
+    networks:
+      - udps-prod
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=256M
+      - /var/log/udps:size=512M
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: udps-postgres
+    restart: always
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - wal_buffers=16MB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - log_min_duration_statement=500
+      - -c
+      - log_checkpoints=on
+      - -c
+      - log_connections=on
+      - -c
+      - log_disconnections=on
+      - -c
+      - log_lock_waits=on
+      - -c
+      - log_statement=ddl
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/etc/postgresql/tls/tls.crt
+      - -c
+      - ssl_key_file=/etc/postgresql/tls/tls.key
+    volumes:
+      - udps-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+      - ${PG_TLS_CERT_DIR:-./.tls/postgres}:/etc/postgresql/tls:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service"
+    labels:
+      service: postgres
+    networks:
+      - udps-prod
+    shm_size: "256mb"
+
+  minio:
+    image: minio/minio:RELEASE.2024-01-29T03-56-32Z
+    container_name: udps-minio
+    restart: always
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_CONSOLE_URL}
+      MINIO_PROMETHEUS_AUTH_TYPE: public
+    command: server /data --console-address ":9001" --certs-dir /etc/minio/certs
+    volumes:
+      - udps-minio-data:/data
+      - ${MINIO_TLS_CERT_DIR:-./.tls/minio}:/etc/minio/certs:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+        reservations:
+          cpus: "0.25"
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service"
+    labels:
+      service: minio
+    networks:
+      - udps-prod
+
+  redis:
+    image: redis:7-alpine
+    container_name: udps-redis
+    restart: always
+    ports:
+      - "${REDIS_EXTERNAL_PORT:-6379}:6379"
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - ${REDIS_MAX_MEMORY:-512mb}
+      - --maxmemory-policy
+      - allkeys-lru
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      - --tls-port
+      - "6379"
+      - --port
+      - "0"
+      - --tls-cert-file
+      - /etc/redis/tls/tls.crt
+      - --tls-key-file
+      - /etc/redis/tls/tls.key
+      - --tls-ca-cert-file
+      - /etc/redis/tls/ca.crt
+      - --rename-command
+      - FLUSHALL
+      - ""
+      - --rename-command
+      - FLUSHDB
+      - ""
+      - --rename-command
+      - DEBUG
+      - ""
+    volumes:
+      - udps-redis-data:/data
+      - ${REDIS_TLS_CERT_DIR:-./.tls/redis}:/etc/redis/tls:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 1G
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --tls --cert /etc/redis/tls/tls.crt --key /etc/redis/tls/tls.key --cacert /etc/redis/tls/ca.crt -a ${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "25m"
+        max-file: "3"
+        labels: "service"
+    labels:
+      service: redis
+    networks:
+      - udps-prod
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.3
+    container_name: udps-zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: "2181"
+      ZOOKEEPER_TICK_TIME: "2000"
+      ZOOKEEPER_SYNC_LIMIT: "2"
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/zookeeper/zookeeper_jaas.conf"
+    volumes:
+      - udps-zookeeper-data:/var/lib/zookeeper/data
+      - udps-zookeeper-log:/var/lib/zookeeper/log
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "25m"
+        max-file: "3"
+        labels: "service"
+    labels:
+      service: zookeeper
+    networks:
+      - udps-prod
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.3
+    container_name: udps-kafka
+    restart: always
+    ports:
+      - "${KAFKA_EXTERNAL_PORT:-9092}:9092"
+    environment:
+      KAFKA_BROKER_ID: "1"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: SSL:SSL,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: SSL://${KAFKA_EXTERNAL_HOST:-localhost}:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENERS: SSL://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "3000"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: "${KAFKA_LOG_RETENTION_HOURS:-168}"
+      KAFKA_LOG_RETENTION_BYTES: "${KAFKA_LOG_RETENTION_BYTES:-1073741824}"
+      KAFKA_LOG_SEGMENT_BYTES: "${KAFKA_LOG_SEGMENT_BYTES:-536870912}"
+      KAFKA_MESSAGE_MAX_BYTES: "${KAFKA_MESSAGE_MAX_BYTES:-10485760}"
+      KAFKA_SSL_KEYSTORE_FILENAME: kafka.keystore.jks
+      KAFKA_SSL_KEYSTORE_CREDENTIALS: keystore-creds
+      KAFKA_SSL_KEY_CREDENTIALS: key-creds
+      KAFKA_SSL_TRUSTSTORE_FILENAME: kafka.truststore.jks
+      KAFKA_SSL_TRUSTSTORE_CREDENTIALS: truststore-creds
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: "https"
+    volumes:
+      - udps-kafka-data:/var/lib/kafka/data
+      - ${KAFKA_TLS_CERT_DIR:-./.tls/kafka}:/etc/kafka/secrets:ro
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:29092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service"
+    labels:
+      service: kafka
+    networks:
+      - udps-prod
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: udps-jaeger
+    restart: always
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${OTEL_GRPC_PORT:-4317}:4317"
+      - "${OTEL_HTTP_PORT:-4318}:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      SPAN_STORAGE_TYPE: badger
+      BADGER_EPHEMERAL: "false"
+      BADGER_DIRECTORY_VALUE: /badger/data
+      BADGER_DIRECTORY_KEY: /badger/key
+    volumes:
+      - udps-jaeger-data:/badger
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.1"
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:16686/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "25m"
+        max-file: "3"
+        labels: "service"
+    labels:
+      service: jaeger
+    networks:
+      - udps-prod
+
+volumes:
+  udps-postgres-data:
+    driver: local
+  udps-minio-data:
+    driver: local
+  udps-redis-data:
+    driver: local
+  udps-zookeeper-data:
+    driver: local
+  udps-zookeeper-log:
+    driver: local
+  udps-kafka-data:
+    driver: local
+  udps-jaeger-data:
+    driver: local
+
+networks:
+  udps-prod:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

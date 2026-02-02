@@ -49,7 +49,7 @@ final class TransactionCoordinator(
         }
       }
     } yield {
-      logger.info(s"Transaction begun: id=${entry.transactionId}, partitions=$partitions")
+      logger.info("Transaction begun: id={}, partitions={}", entry.transactionId, partitions)
       entry
     }
 
@@ -77,7 +77,7 @@ final class TransactionCoordinator(
       } else IO.unit
       bw = BufferedWrite(tableName, partitionKey, dataPath, rowCount, sizeBytes)
       _ <- transactionLog.addBufferedWrite(txnId, bw)
-    } yield logger.debug(s"Write buffered: txn=$txnId, table=$tableName, partition=$partitionKey, rows=$rowCount")
+    } yield logger.debug("Write buffered: txn={}, table={}, partition={}, rows={}", txnId, tableName, partitionKey, rowCount.toString)
 
   /**
    * Two-Phase Commit.
@@ -98,7 +98,7 @@ final class TransactionCoordinator(
       _ <- finalizeBufferedWrites(entry)
       _ <- transactionLog.updateStatus(txnId, TransactionStatus.Committed)
       _ <- lockManager.releaseAllLocks(txnId)
-    } yield logger.info(s"Transaction committed: id=$txnId, writes=${entry.bufferedWrites.size}")
+    } yield logger.info("Transaction committed: id={}, writes={}", txnId, entry.bufferedWrites.size.toString)
 
   /**
    * Rollback a transaction: discard buffered writes, release locks, mark as rolled back.
@@ -113,7 +113,7 @@ final class TransactionCoordinator(
       _ <- discardBufferedWrites(entry)
       _ <- lockManager.releaseAllLocks(txnId)
       _ <- transactionLog.updateStatus(txnId, TransactionStatus.RolledBack)
-    } yield logger.info(s"Transaction rolled back: id=$txnId")
+    } yield logger.info("Transaction rolled back: id={}", txnId)
 
   /**
    * Acquire a shared lock on a resource for reading within a transaction.
@@ -128,7 +128,7 @@ final class TransactionCoordinator(
           s"Failed to acquire shared lock on $resource for txn=$txnId"
         ))
       } else IO.unit
-    } yield logger.debug(s"Read lock acquired: txn=$txnId, resource=$resource")
+    } yield logger.debug("Read lock acquired: txn={}, resource={}", txnId, resource)
 
   /**
    * Check for timed-out transactions and auto-abort them.
@@ -141,7 +141,7 @@ final class TransactionCoordinator(
       now     <- IO.realTimeInstant
       expired = active.filter(e => now.isAfter(e.timeoutAt))
       _       <- expired.traverse_ { e =>
-        logger.warn(s"Transaction timed out: id=${e.transactionId}, started=${e.startedAt}")
+        logger.warn("Transaction timed out: id={}, started={}", e.transactionId, e.startedAt)
         discardBufferedWrites(e) *>
           lockManager.releaseAllLocks(e.transactionId) *>
           transactionLog.updateStatus(e.transactionId, TransactionStatus.Aborted)
@@ -204,10 +204,10 @@ final class TransactionCoordinator(
       case false =>
         lockManager.detectDeadlock(txnId).flatMap {
           case Some(victimId) if victimId == txnId =>
-            logger.warn(s"Deadlock victim: aborting self txn=$txnId")
+            logger.warn("Deadlock victim: aborting self txn={}", txnId)
             IO.pure(false)
           case Some(victimId) =>
-            logger.warn(s"Deadlock detected: aborting victim txn=$victimId to unblock txn=$txnId")
+            logger.warn("Deadlock detected: aborting victim txn={} to unblock txn={}", victimId, txnId)
             rollback(victimId) *>
               lockManager.acquireLock(txnId, resource, lockType)
           case None =>
@@ -243,14 +243,14 @@ final class TransactionCoordinator(
         val path = Paths.get(bw.dataPath)
         if (Files.exists(path)) {
           logger.info(
-            s"Committing write: txn=${entry.transactionId}, " +
-            s"table=${bw.tableName}, partition=${bw.partitionKey}, " +
-            s"rows=${bw.rowCount}, bytes=${bw.sizeBytes}, path=${bw.dataPath}"
+            "Committing write: txn={}, table={}, partition={}, rows={}, bytes={}, path={}",
+            Array[AnyRef](entry.transactionId, bw.tableName, bw.partitionKey,
+              java.lang.Long.valueOf(bw.rowCount), java.lang.Long.valueOf(bw.sizeBytes), bw.dataPath): _*
           )
         } else {
           logger.warn(
-            s"Buffered write path not found during commit (may have been externally managed): " +
-            s"txn=${entry.transactionId}, path=${bw.dataPath}"
+            "Buffered write path not found during commit (may have been externally managed): txn={}, path={}",
+            entry.transactionId, bw.dataPath
           )
         }
       }

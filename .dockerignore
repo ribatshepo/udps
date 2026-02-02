@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.bsp/
+.metals/
+.bloop/
+
+# SBT build output (rebuilt inside container)
+target/
+project/target/
+project/project/
+udps-*/target/
+
+# Docker files (avoid recursive context)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation and config not needed at runtime
+*.md
+LICENSE
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+
+# Environment files (must never be baked into image)
+.env
+.env.*
+*.env
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Test fixtures and data
+testdata/
+test-output/
+
+# Docker infrastructure scripts (bind-mounted at dev time)
+docker/

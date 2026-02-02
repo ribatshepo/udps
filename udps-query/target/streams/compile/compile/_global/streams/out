@@ -1,0 +1,4 @@
+[error] /home/tshepo/projects/seri-sa/udps/udps-query/src/main/scala/io/gbmm/udps/query/optimizer/LogicalOptimizer.scala:129:28: The outer reference in this type test cannot be checked at run time.
+[error]   private final case class PhaseResult(plan: RelNode, ruleNames: Seq[String])
+[error]                            ^
+[error] one error found

@@ -57,11 +57,11 @@ final class LockManager private (
           } else {
             val entry = LockEntry(resource, lockType, txnId, now)
             val updated = m.updated(resource, existing :+ entry)
-            logger.debug(s"Lock acquired: txn=$txnId, resource=$resource, type=$lockType")
+            logger.debug("Lock acquired: txn={}, resource={}, type={}", txnId, resource, lockType)
             (updated, true)
           }
         } else {
-          logger.debug(s"Lock denied: txn=$txnId, resource=$resource, type=$lockType, held by=${otherHolders.map(_.holderId)}")
+          logger.debug("Lock denied: txn={}, resource={}, type={}, held by={}", txnId, resource, lockType, otherHolders.map(_.holderId))
           (m, false)
         }
       }
@@ -76,14 +76,14 @@ final class LockManager private (
           else m.updated(resource, remaining)
         case None => m
       }
-    } *> IO(logger.debug(s"Lock released: txn=$txnId, resource=$resource"))
+    } *> IO(logger.debug("Lock released: txn={}, resource={}", txnId, resource))
 
   def releaseAllLocks(txnId: UUID): IO[Unit] =
     locks.update { m =>
       m.map { case (resource, entries) =>
         resource -> entries.filterNot(_.holderId == txnId)
       }.filter(_._2.nonEmpty)
-    } *> IO(logger.debug(s"All locks released for txn=$txnId"))
+    } *> IO(logger.debug("All locks released for txn={}", txnId))
 
   /**
    * Detect deadlock using wait-for graph with DFS cycle detection.
@@ -105,7 +105,7 @@ final class LockManager private (
       findCycleContaining(txnId, waitForGraph) match {
         case Some(cycle) if cycle.nonEmpty =>
           val youngest = cycle.maxBy(id => startTimes.getOrElse(id, Instant.MIN))
-          logger.warn(s"Deadlock detected involving txn=$txnId, cycle=$cycle, aborting youngest=$youngest")
+          logger.warn("Deadlock detected involving txn={}, cycle={}, aborting youngest={}", txnId, cycle, youngest)
           Some(youngest)
         case _ => None
       }

@@ -71,30 +71,32 @@ final class MaterializedViewEngine private (
 
   /** Register a new materialized view definition. */
   def createView(definition: ViewDefinition): IO[ViewDefinition] =
-    IO.delay {
-      val existing = views.putIfAbsent(definition.id, definition)
+    IO.delay(views.putIfAbsent(definition.id, definition)).flatMap { existing =>
       if (existing != null) {
-        throw new IllegalArgumentException(
+        IO.raiseError(new IllegalArgumentException(
           s"View with id=${definition.id} already exists (name=${existing.name})"
-        )
+        ))
+      } else {
+        IO.delay {
+          logger.info(
+            "Created materialized view: name={}, namespace={}, id={}",
+            definition.name,
+            definition.namespace,
+            definition.id.toString
+          )
+          definition
+        }
       }
-      logger.info(
-        "Created materialized view: name={}, namespace={}, id={}",
-        definition.name,
-        definition.namespace,
-        definition.id.toString
-      )
-      definition
     }
 
   /** Remove a view and its data path reference. */
   def dropView(viewId: UUID): IO[Unit] =
-    IO.delay {
-      val removed = views.remove(viewId)
+    IO.delay(views.remove(viewId)).flatMap { removed =>
       if (removed == null) {
-        throw new NoSuchElementException(s"View not found: $viewId")
+        IO.raiseError(new NoSuchElementException(s"View not found: $viewId"))
+      } else {
+        IO.delay(logger.info("Dropped materialized view: id={}, name={}", viewId.toString, removed.name))
       }
-      logger.info("Dropped materialized view: id={}, name={}", viewId.toString, removed.name)
     }
 
   /** Retrieve a view by id. */

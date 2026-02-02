@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: udps-config
+  namespace: udps
+  labels:
+    app.kubernetes.io/name: udps
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: seri-sa-platform
+data:
+  # Application ports
+  GRPC_PORT: "50060"
+  HTTPS_PORT: "8443"
+  HEALTH_PORT: "8081"
+  METRICS_PORT: "9090"
+
+  # PostgreSQL connection (non-sensitive)
+  POSTGRES_HOST: "udps-postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "udps_catalog"
+
+  # Redis connection (non-sensitive)
+  REDIS_HOST: "udps-redis"
+  REDIS_PORT: "6379"
+  REDIS_MAX_MEMORY: "512mb"
+  REDIS_MAX_MEMORY_POLICY: "allkeys-lru"
+
+  # Kafka connection (non-sensitive)
+  KAFKA_BOOTSTRAP_SERVERS: "udps-kafka:29092"
+  KAFKA_AUTO_CREATE_TOPICS: "false"
+
+  # MinIO endpoint (non-sensitive)
+  MINIO_ENDPOINT: "https://udps-minio:9000"
+
+  # Observability
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4317"
+  OTEL_SERVICE_NAME: "udps"
+  OTEL_RESOURCE_ATTRIBUTES: "service.namespace=seri-sa,deployment.environment=production"
+
+  # Logging
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+
+  # Feature flags
+  FEATURE_LINEAGE_TRACKING: "true"
+  FEATURE_QUERY_CACHE: "true"
+  FEATURE_GOVERNANCE_POLICIES: "true"
+  FEATURE_ARCHIVE_TIER: "true"
+
+  # JVM settings for the Scala application
+  JAVA_OPTS: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -Djava.security.egd=file:/dev/urandom"
+  JVM_HEAP_MIN: "512m"
+  JVM_HEAP_MAX: "2g"

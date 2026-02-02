@@ -15,7 +15,9 @@ object Dependencies {
     val doobie = "1.0.0-RC5"
     val minio = "8.5.7"
     val kafka = "3.6.1"
-    val redis = "4.6.0"
+    val mongoDriver = "4.11.1"
+    val elasticClient = "8.11.4"
+    val redis = "1.7.1"
     val logback = "1.4.14"
     val scalaLogging = "3.9.5"
     val scalatest = "3.2.17"
@@ -25,6 +27,9 @@ object Dependencies {
     val hadoop = "3.3.6"
     val lucene = "9.9.2"
     val roaringBitmap = "0.9.45"
+    val calcite = "1.35.0"
+    val akka = "2.8.5"
+    val akkaHttp = "10.5.3"
   }
   
   // Core dependencies
@@ -65,6 +70,13 @@ object Dependencies {
   // Messaging
   val kafkaClients = "org.apache.kafka" % "kafka-clients" % Versions.kafka
   val fs2Kafka = "com.github.fd4s" %% "fs2-kafka" % "3.2.0"
+
+  // MongoDB
+  val mongoDriverSync = "org.mongodb" % "mongodb-driver-sync" % Versions.mongoDriver
+
+  // Elasticsearch
+  val elasticJavaClient = "co.elastic.clients" % "elasticsearch-java" % Versions.elasticClient
+  val elasticRestClient = "org.elasticsearch.client" % "elasticsearch-rest-client" % Versions.elasticClient
   
   // Cache
   val redis4cats = "dev.profunktor" %% "redis4cats-effects" % Versions.redis
@@ -94,6 +106,17 @@ object Dependencies {
   
   // RoaringBitmap
   val roaringBitmap = "org.roaringbitmap" % "RoaringBitmap" % Versions.roaringBitmap
+
+  // Apache Calcite
+  val calciteCore = "org.apache.calcite" % "calcite-core" % Versions.calcite
+  val calciteLinq4j = "org.apache.calcite" % "calcite-linq4j" % Versions.calcite
+
+  // Akka
+  val akkaActor = "com.typesafe.akka" %% "akka-actor-typed" % Versions.akka
+  val akkaCluster = "com.typesafe.akka" %% "akka-cluster-typed" % Versions.akka
+  val akkaClusterSharding = "com.typesafe.akka" %% "akka-cluster-sharding-typed" % Versions.akka
+  val akkaStream = "com.typesafe.akka" %% "akka-stream" % Versions.akka
+  val akkaSerialization = "com.typesafe.akka" %% "akka-serialization-jackson" % Versions.akka
   
   // Testing
   val scalatest = "org.scalatest" %% "scalatest" % Versions.scalatest % Test
@@ -161,6 +184,21 @@ object Dependencies {
     redis4cats
   )
   
+  val queryDeps = Seq(
+    calciteCore,
+    calciteLinq4j,
+    akkaActor,
+    akkaCluster,
+    akkaClusterSharding,
+    akkaStream,
+    akkaSerialization,
+    redis4cats,
+    kafkaClients,
+    mongoDriverSync,
+    elasticJavaClient,
+    elasticRestClient
+  )
+
   val testDeps = Seq(
     scalatest,
     testcontainers,

@@ -57,7 +57,7 @@ lazy val storage = (project in file("udps-storage"))
 lazy val query = (project in file("udps-query"))
   .settings(
     name := "udps-query",
-    libraryDependencies ++= coreDeps ++ testDeps
+    libraryDependencies ++= coreDeps ++ queryDeps ++ storageDeps ++ jsonDeps ++ testDeps
   )
   .dependsOn(core, storage)
 
@@ -65,7 +65,7 @@ lazy val query = (project in file("udps-query"))
 lazy val catalog = (project in file("udps-catalog"))
   .settings(
     name := "udps-catalog",
-    libraryDependencies ++= coreDeps ++ storageDeps ++ testDeps
+    libraryDependencies ++= coreDeps ++ storageDeps ++ messagingDeps ++ jsonDeps ++ testDeps
   )
   .dependsOn(core, storage)
 
@@ -73,7 +73,7 @@ lazy val catalog = (project in file("udps-catalog"))
 lazy val governance = (project in file("udps-governance"))
   .settings(
     name := "udps-governance",
-    libraryDependencies ++= coreDeps ++ storageDeps ++ messagingDeps ++ testDeps
+    libraryDependencies ++= coreDeps ++ storageDeps ++ messagingDeps ++ jsonDeps ++ testDeps
   )
   .dependsOn(core, catalog)
 
