@@ -1,78 +1,13 @@
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:73:44: value defaultConfig is not a member of object io.gbmm.udps.query.parser.SQLParser
-[error]       sqlParser      = SQLParser(SQLParser.defaultConfig)
-[error]                                            ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:124:26: type mismatch;
-[error]  found   : Any
-[error]  required: io.gbmm.udps.query.parser.SQLParser
-[error]                          sqlParser,
-[error]                          ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:127:26: type mismatch;
-[error]  found   : Any
-[error]  required: io.gbmm.udps.query.physical.PhysicalPlanner
-[error]                          physicalPlanner,
-[error]                          ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:128:26: type mismatch;
-[error]  found   : Any
-[error]  required: io.gbmm.udps.query.execution.DistributedExecutor
-[error]                          executor,
-[error]                          ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:137:52: type mismatch;
-[error]  found   : Any
-[error]  required: org.http4s.HttpRoutes[cats.effect.IO]
-[error]     (which expands to)  cats.data.Kleisli[[β$0$]cats.data.OptionT[cats.effect.IO,β$0$],org.http4s.Request[cats.effect.IO],org.http4s.Response[cats.effect.IO]]
-[error]       httpServer    <- RestServer.build(apiConfig, composedRoutes)
-[error]                                                    ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:138:57: type mismatch;
-[error]  found   : Any
-[error]  required: io.gbmm.udps.api.grpc.CatalogServiceImpl
-[error]       grpcServer    <- GrpcServer.build(apiConfig.grpc, catalogGrpc, storageGrpc, queryGrpc, healthGrpc)
-[error]                                                         ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:138:70: type mismatch;
-[error]  found   : Any
-[error]  required: io.gbmm.udps.api.grpc.StorageServiceImpl
-[error]       grpcServer    <- GrpcServer.build(apiConfig.grpc, catalogGrpc, storageGrpc, queryGrpc, healthGrpc)
-[error]                                                                      ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:138:83: type mismatch;
-[error]  found   : Any
-[error]  required: io.gbmm.udps.api.grpc.QueryServiceImpl
-[error]       grpcServer    <- GrpcServer.build(apiConfig.grpc, catalogGrpc, storageGrpc, queryGrpc, healthGrpc)
-[error]                                                                                   ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:138:94: type mismatch;
-[error]  found   : Any
-[error]  required: io.gbmm.udps.api.grpc.HealthServiceImpl
-[error]       grpcServer    <- GrpcServer.build(apiConfig.grpc, catalogGrpc, storageGrpc, queryGrpc, healthGrpc)
-[error]                                                                                              ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:265:53: type Expression is not a member of package io.gbmm.udps.query.physical
-[error]       predicate: Option[io.gbmm.udps.query.physical.Expression],
-[error]                                                     ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:76:30: the type test for pattern String => cats.effect.IO[io.gbmm.udps.query.physical.PhysicalOperator] cannot be checked at runtime because it has type parameters eliminated by erasure
-[error]       sqlToOperator: (String => IO[PhysicalOperator]) = buildSqlToOperator(
-[error]                              ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:80:27: the type test for pattern String => cats.effect.IO[io.gbmm.udps.query.execution.QueryResult] cannot be checked at runtime because it has type parameters eliminated by erasure
-[error]       executeSql: (String => IO[io.gbmm.udps.query.execution.QueryResult]) = { (sql: String) =>
-[error]                           ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:109:24: the type test for pattern cats.data.Kleisli[[β$0$]cats.data.OptionT[cats.effect.IO,β$0$],org.http4s.Request[cats.effect.IO],org.http4s.Response[cats.effect.IO]] (the underlying of org.http4s.HttpRoutes[cats.effect.IO]) cannot be checked at runtime because it has type parameters eliminated by erasure
-[error]       protectedRoutes: HttpRoutes[IO] = catalogRoutes.routes <+>
-[error]                        ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:116:21: the type test for pattern cats.data.Kleisli[[β$0$]cats.data.OptionT[cats.effect.IO,β$0$],org.http4s.Request[cats.effect.IO],org.http4s.Response[cats.effect.IO]] (the underlying of org.http4s.HttpRoutes[cats.effect.IO]) cannot be checked at runtime because it has type parameters eliminated by erasure
-[error]       publicRoutes: HttpRoutes[IO] = healthRoutes.routes <+> docsRoutes.routes
-[error]                     ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:209:15: private method buildSqlToOperator in object ApiMain is never used
-[error]   private def buildSqlToOperator(
-[error]               ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:260:15: private val emptyDataReader in object ApiMain is never used
-[error]   private val emptyDataReader: DataReader = new DataReader {
-[error]               ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/rest/DocsRoutes.scala:27:19: Cannot convert from io.circe.Json to an Entity, because no EntityEncoder[cats.effect.IO, io.circe.Json] instance could be found.
-[error]           NotFound(ApiError("NOT_FOUND", "OpenAPI specification not found", None).asJson)
-[error]                   ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/rest/DocsRoutes.scala:35:19: Cannot convert from io.circe.Json to an Entity, because no EntityEncoder[cats.effect.IO, io.circe.Json] instance could be found.
-[error]           NotFound(ApiError("NOT_FOUND", "GraphQL SDL schema not found", None).asJson)
-[error]                   ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/rest/DocsRoutes.scala:8:27: Unused import
-[error] import org.http4s.headers.`Content-Type`
-[error]                           ^
-[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/rest/DocsRoutes.scala:18:15: private val yamlMediaType in class DocsRoutes is never used
-[error]   private val yamlMediaType: MediaType =
-[error]               ^
-[error] 20 errors found
+[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:15:125: Unused import
+[error] import io.gbmm.udps.integration.uccp.{MetricsPusher, MetricsSource, MetricSnapshot, ObservabilityConfig, TracingPropagator, ServiceDiscoveryClient, ServiceDiscoveryConfig, HealthReporter, HealthReportingConfig}
+[error]                                                                                                                             ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:15:149: Unused import
+[error] import io.gbmm.udps.integration.uccp.{MetricsPusher, MetricsSource, MetricSnapshot, ObservabilityConfig, TracingPropagator, ServiceDiscoveryClient, ServiceDiscoveryConfig, HealthReporter, HealthReportingConfig}
+[error]                                                                                                                                                     ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:15:173: Unused import
+[error] import io.gbmm.udps.integration.uccp.{MetricsPusher, MetricsSource, MetricSnapshot, ObservabilityConfig, TracingPropagator, ServiceDiscoveryClient, ServiceDiscoveryConfig, HealthReporter, HealthReportingConfig}
+[error]                                                                                                                                                                             ^
+[error] /home/tshepo/projects/seri-sa/udps/udps-api/src/main/scala/io/gbmm/udps/api/ApiMain.scala:15:189: Unused import
+[error] import io.gbmm.udps.integration.uccp.{MetricsPusher, MetricsSource, MetricSnapshot, ObservabilityConfig, TracingPropagator, ServiceDiscoveryClient, ServiceDiscoveryConfig, HealthReporter, HealthReportingConfig}
+[error]                                                                                                                                                                                             ^
+[error] four errors found

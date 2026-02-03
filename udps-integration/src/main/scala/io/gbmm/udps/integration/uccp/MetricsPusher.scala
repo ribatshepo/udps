@@ -1,6 +1,6 @@
 package io.gbmm.udps.integration.uccp
 
-import cats.effect.{Fiber, IO, Resource}
+import cats.effect.{IO, Resource}
 import com.typesafe.scalalogging.LazyLogging
 import fs2.Stream
 import io.gbmm.udps.integration.circuitbreaker.IntegrationCircuitBreaker

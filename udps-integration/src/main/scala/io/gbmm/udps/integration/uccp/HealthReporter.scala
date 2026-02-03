@@ -196,7 +196,7 @@ final class HealthReporter private (
       serviceId: String,
       status: HealthReportStatus,
       details: HealthDetails,
-      componentMetadata: Map[String, String] = Map.empty
+      componentMetadata: Map[String, String]
   ): IO[Unit] = {
     val protoHealth = status match {
       case HealthReportStatus.Healthy       => ProtoHealthStatus.HEALTH_STATUS_HEALTHY

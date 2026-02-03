@@ -13,7 +13,6 @@ import io.gbmm.udps.catalog.repository.{CatalogDbConfig => RepoCatalogDbConfig, 
 import io.gbmm.udps.core.config.{MinioConfig, StorageConfig}
 import io.gbmm.udps.integration.circuitbreaker.{CircuitBreakerConfig => IntegrationCBConfig, IntegrationCircuitBreaker}
 import io.gbmm.udps.integration.uccp.{MetricsPusher, MetricsSource, MetricSnapshot, ObservabilityConfig, TracingPropagator, ServiceDiscoveryClient, ServiceDiscoveryConfig, HealthReporter, HealthReportingConfig}
-import io.gbmm.udps.integration.uccp.{HealthCheck => UccpHealthCheck, HealthDetails, ComponentHealth => UccpComponentHealth, HealthReportStatus}
 import io.gbmm.udps.integration.usp.{AuthenticationClient, AuthenticationConfig}
 import io.gbmm.udps.query.execution.{DataReader, DistributedExecutor}
 import io.gbmm.udps.query.optimizer.{ColumnStats, CostBasedOptimizer, LogicalOptimizer, StatisticsProvider, TableStatistics}
