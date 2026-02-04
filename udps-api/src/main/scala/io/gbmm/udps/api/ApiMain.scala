@@ -10,8 +10,8 @@ import io.gbmm.udps.api.graphql.{GraphQLContext, GraphQLRoutes}
 import io.gbmm.udps.api.grpc._
 import io.gbmm.udps.api.rest._
 import io.gbmm.udps.catalog.repository.{CatalogDbConfig => RepoCatalogDbConfig, DoobieMetadataRepository, MetadataRepository}
-import io.gbmm.udps.core.config.{MinioConfig, StorageConfig}
-import io.gbmm.udps.integration.circuitbreaker.{CircuitBreakerConfig => IntegrationCBConfig, IntegrationCircuitBreaker}
+import io.gbmm.udps.core.config.{MinioConfig, SeriConfig, StorageConfig}
+import io.gbmm.udps.integration.circuitbreaker.{CircuitBreakerConfig => IntegrationCBConfig, CircuitBreakerState, IntegrationCircuitBreaker}
 import io.gbmm.udps.integration.uccp.{MetricsPusher, MetricsSource, MetricSnapshot, ObservabilityConfig, TracingPropagator, ServiceDiscoveryClient, ServiceDiscoveryConfig, HealthReporter, HealthReportingConfig}
 import io.gbmm.udps.integration.usp.{AuthenticationClient, AuthenticationConfig}
 import io.gbmm.udps.query.execution.{DataReader, DistributedExecutor}
@@ -48,6 +48,7 @@ object ApiMain extends IOApp.Simple with LazyLogging {
   private def buildResources: Resource[IO, (Http4sServer, Server)] =
     for {
       apiConfig     <- Resource.eval(loadConfig)
+      seriConfig    <- Resource.eval(loadSeriConfig)
       ioRuntime      = IORuntime.global
 
       // -- Database --
@@ -89,7 +90,7 @@ object ApiMain extends IOApp.Simple with LazyLogging {
                        sqlToOperator(sql).flatMap(executor.execute)
                      }
 
-      // -- Health checks --
+      // -- Infrastructure health checks --
       dbHealthCheck  = new HealthCheck {
                          val name: String = "catalog-db"
                          def check: IO[ComponentHealth] =
@@ -102,11 +103,20 @@ object ApiMain extends IOApp.Simple with LazyLogging {
 
       healthChecks   = List(dbHealthCheck)
 
+      // -- Integration health checks --
+      integrationChecks = buildIntegrationHealthChecks(seriConfig, circuitBreaker, uccpObsCB)
+
       // -- REST routes --
       catalogRoutes  = new CatalogRoutes(metadataRepo)
       storageRoutes  = new StorageRoutes(metadataRepo, tierManager)
       queryRoutes    = new QueryRoutes(executor, sqlToOperator)
-      healthRoutes   = new HealthRoutes(healthChecks, apiConfig.version)
+      healthRoutes   = new HealthRoutes(
+                         healthChecks,
+                         integrationChecks,
+                         seriConfig,
+                         "udps",
+                         apiConfig.version
+                       )
 
       graphqlContext = GraphQLContext(metadataRepo, executeSql)(ioRuntime)
       graphqlRoutes  = GraphQLRoutes(graphqlContext)
@@ -151,6 +161,90 @@ object ApiMain extends IOApp.Simple with LazyLogging {
     import ApiConfig._
     ConfigSource.default.at(configNamespace).loadF[IO, ApiConfig]()
   }
+
+  /** Load seri platform configuration from the "seri" namespace. */
+  private def loadSeriConfig: IO[SeriConfig] =
+    io.gbmm.udps.core.config.UdpsConfig.loadSeri
+
+  /** Build integration health checks based on seri configuration.
+    *
+    * USP is critical (affects overall status as DOWN when disconnected in platform mode).
+    * UCCP is non-critical (affects overall status as DEGRADED when disconnected).
+    */
+  private def buildIntegrationHealthChecks(
+      seriConfig: SeriConfig,
+      uspCircuitBreaker: IntegrationCircuitBreaker,
+      uccpCircuitBreaker: IntegrationCircuitBreaker
+  ): List[IntegrationHealthCheck] = {
+    val uspConfig = seriConfig.effectiveUsp
+    val uccpConfig = seriConfig.effectiveUccp
+
+    val uspCheck = new IntegrationHealthCheck {
+      val name: String = "usp"
+      val critical: Boolean = true
+
+      def checkStatus: IO[IntegrationStatus] =
+        if (!uspConfig.enabled) {
+          IO.pure(IntegrationStatus(
+            name = name,
+            enabled = false,
+            connection = ConnectionStatus.Disabled,
+            circuitBreakerState = None,
+            critical = critical
+          ))
+        } else {
+          IO {
+            val cbState = circuitBreakerStateLabel(uspCircuitBreaker.metrics.currentState)
+            val connected = uspCircuitBreaker.metrics.currentState != CircuitBreakerState.Open
+            IntegrationStatus(
+              name = name,
+              enabled = true,
+              connection = if (connected) ConnectionStatus.Connected else ConnectionStatus.Disconnected,
+              circuitBreakerState = Some(cbState),
+              critical = critical
+            )
+          }
+        }
+    }
+
+    val uccpCheck = new IntegrationHealthCheck {
+      val name: String = "uccp"
+      val critical: Boolean = false
+
+      def checkStatus: IO[IntegrationStatus] =
+        if (!uccpConfig.enabled) {
+          IO.pure(IntegrationStatus(
+            name = name,
+            enabled = false,
+            connection = ConnectionStatus.Disabled,
+            circuitBreakerState = None,
+            critical = critical
+          ))
+        } else {
+          IO {
+            val cbState = circuitBreakerStateLabel(uccpCircuitBreaker.metrics.currentState)
+            val connected = uccpCircuitBreaker.metrics.currentState != CircuitBreakerState.Open
+            IntegrationStatus(
+              name = name,
+              enabled = true,
+              connection = if (connected) ConnectionStatus.Connected else ConnectionStatus.Disconnected,
+              circuitBreakerState = Some(cbState),
+              critical = critical
+            )
+          }
+        }
+    }
+
+    List(uspCheck, uccpCheck)
+  }
+
+  /** Convert a CircuitBreakerState to a human-readable label. */
+  private def circuitBreakerStateLabel(state: CircuitBreakerState): String =
+    state match {
+      case CircuitBreakerState.Closed   => "CLOSED"
+      case CircuitBreakerState.Open     => "OPEN"
+      case CircuitBreakerState.HalfOpen => "HALF_OPEN"
+    }
 
   /** Convert the API-layer CatalogDbConfig to the repository-layer CatalogDbConfig. */
   private def toRepoCatalogDbConfig(c: CatalogDbConfig): RepoCatalogDbConfig =

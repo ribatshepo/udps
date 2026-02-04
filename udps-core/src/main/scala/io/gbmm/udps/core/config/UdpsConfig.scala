@@ -115,6 +115,7 @@ final case class UdpsConfig(
 object UdpsConfig {
 
   private val configNamespace = "udps"
+  private val seriNamespace = "seri"
 
   implicit val serviceReader: ConfigReader[ServiceConfig] = deriveReader[ServiceConfig]
   implicit val grpcReader: ConfigReader[GrpcConfig] = deriveReader[GrpcConfig]
@@ -142,4 +143,17 @@ object UdpsConfig {
     */
   def loadEither: Either[ConfigReaderFailures, UdpsConfig] =
     ConfigSource.default.at(configNamespace).load[UdpsConfig]
+
+  /** Load the seri platform configuration from the "seri" namespace.
+    * Raises a ConfigReaderException on failure.
+    */
+  def loadSeri: IO[SeriConfig] =
+    ConfigSource.default.at(seriNamespace).loadF[IO, SeriConfig]()(
+      SeriConfig.reader,
+      implicitly
+    ).map(SeriConfig.validate)
+
+  /** Load the seri platform configuration purely, returning Either. */
+  def loadSeriEither: Either[ConfigReaderFailures, SeriConfig] =
+    ConfigSource.default.at(seriNamespace).load[SeriConfig](SeriConfig.reader).map(SeriConfig.validate)
 }
